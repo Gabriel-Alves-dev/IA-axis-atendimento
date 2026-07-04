@@ -1,0 +1,8 @@
+# Dados persistentes do WAHA local (sessões do WhatsApp, mídias)
+waha/
+
+# Dados persistentes de um teste antigo com n8n (não usado mais no projeto)
+n8n/
+
+# Segredos usados pelo docker-compose.yml (WAHA_API_KEY, senha do dashboard etc.)
+.env

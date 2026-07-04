@@ -1,0 +1,828 @@
+{
+  "project": {
+    "name": "Atendente IA WhatsApp SaaS",
+    "type": "saas_mvp",
+    "future_type": "white_label_possible",
+    "language": "pt-BR",
+    "primary_goal": "Validar uma plataforma admin para pequenos negócios configurarem um atendente de IA no WhatsApp.",
+    "first_pilot": "Lanchonete da tia",
+    "decision": "Usar n8n + WAHA para MVP rápido e migrar para WhatsApp Cloud API/BSP quando escalar."
+  },
+  "product_vision": {
+    "description": "Painel SaaS onde o usuário conecta o WhatsApp Business, configura a IA, cadastra dados da loja e ativa/desativa o atendente IA.",
+    "target_users": [
+      "lanchonetes",
+      "pizzarias",
+      "barbearias",
+      "clínicas estéticas",
+      "lojas locais",
+      "assistências técnicas",
+      "imobiliárias"
+    ],
+    "main_value": [
+      "reduzir atendimento repetitivo",
+      "responder dúvidas frequentes",
+      "montar pedidos ou solicitações",
+      "encaminhar casos complexos para humano",
+      "operar direto no WhatsApp"
+    ]
+  },
+  "stack": {
+    "frontend": [
+      "Next.js",
+      "React",
+      "Tailwind CSS",
+      "shadcn/ui"
+    ],
+    "auth_database": [
+      "Supabase Auth",
+      "Supabase Postgres"
+    ],
+    "automation": [
+      "n8n self-hosted"
+    ],
+    "whatsapp_mvp": [
+      "WAHA"
+    ],
+    "ai": [
+      "OpenAI",
+      "Claude",
+      "Gemini"
+    ],
+    "infra": [
+      "VPS",
+      "Docker Compose"
+    ],
+    "logs": [
+      "Postgres tables",
+      "ai_logs",
+      "messages",
+      "webhook_events"
+    ]
+  },
+  "architecture": {
+    "flow": [
+      "Cliente final envia mensagem no WhatsApp",
+      "WAHA recebe mensagem",
+      "WAHA envia webhook",
+      "n8n recebe evento",
+      "n8n consulta Supabase/Postgres",
+      "n8n verifica IA ativa, horário, modo humano e regras",
+      "n8n monta contexto com loja, cardápio e histórico",
+      "n8n chama LLM",
+      "LLM retorna JSON estruturado",
+      "n8n valida JSON",
+      "n8n envia resposta via WAHA",
+      "n8n salva mensagens, logs e estado da conversa",
+      "Painel admin exibe histórico e status"
+    ],
+    "principles": [
+      "Usuário final não acessa n8n",
+      "Painel conversa com API própria",
+      "n8n funciona como motor de workflow",
+      "WAHA é camada de WhatsApp no MVP",
+      "IA sempre responde em JSON",
+      "Banco mantém estado e histórico",
+      "Handoff humano é obrigatório"
+    ]
+  },
+  "mvp_scope": {
+    "include": [
+      "login",
+      "cadastro de empresa",
+      "conectar WhatsApp via QR Code",
+      "sessão WAHA",
+      "configuração do agente",
+      "templates por segmento",
+      "cadastro manual de cardápio/base",
+      "botão ativar/desativar IA",
+      "webhook de mensagem recebida",
+      "resposta automática por IA",
+      "histórico de conversas",
+      "handoff humano",
+      "pedidos confirmados",
+      "logs da IA"
+    ],
+    "exclude": [
+      "billing",
+      "white label avançado",
+      "integração com iFood",
+      "pagamento automático",
+      "campanhas de marketing",
+      "CRM completo",
+      "multiatendente avançado",
+      "upload inteligente de PDF",
+      "app mobile",
+      "analytics sofisticado",
+      "controle avançado de estoque"
+    ]
+  },
+  "admin_panel": {
+    "pages": [
+      {
+        "name": "Login",
+        "route": "/login",
+        "features": [
+          "email/password login",
+          "register optional"
+        ]
+      },
+      {
+        "name": "Dashboard",
+        "route": "/dashboard",
+        "features": [
+          "status do WhatsApp",
+          "status da IA",
+          "conversas abertas",
+          "pedidos do dia",
+          "handoffs humanos",
+          "erros recentes"
+        ]
+      },
+      {
+        "name": "Minha empresa",
+        "route": "/dashboard/store",
+        "fields": [
+          "store_name",
+          "business_type",
+          "address",
+          "opening_hours",
+          "human_contact",
+          "instagram_url",
+          "payment_methods",
+          "delivery_rules",
+          "notes"
+        ]
+      },
+      {
+        "name": "WhatsApp",
+        "route": "/dashboard/whatsapp",
+        "features": [
+          "criar sessão WAHA",
+          "exibir QR Code",
+          "mostrar número conectado",
+          "status da conexão",
+          "desconectar sessão"
+        ]
+      },
+      {
+        "name": "IA",
+        "route": "/dashboard/agent",
+        "fields": [
+          "template_type",
+          "tone",
+          "system_prompt",
+          "fallback_message",
+          "after_hours_message",
+          "human_handoff_rules",
+          "training_mode",
+          "human_approval_required",
+          "after_hours_enabled",
+          "agent_enabled"
+        ]
+      },
+      {
+        "name": "Cardápio/Base",
+        "route": "/dashboard/menu",
+        "fields": [
+          "category",
+          "name",
+          "description",
+          "price",
+          "extras_json",
+          "available",
+          "preparation_time_minutes",
+          "notes"
+        ]
+      },
+      {
+        "name": "Conversas",
+        "route": "/dashboard/conversations",
+        "features": [
+          "listar conversas",
+          "ver mensagens",
+          "assumir conversa",
+          "devolver para IA",
+          "enviar mensagem manual",
+          "ver resumo"
+        ]
+      },
+      {
+        "name": "Pedidos",
+        "route": "/dashboard/orders",
+        "features": [
+          "listar pedidos",
+          "ver itens",
+          "ver endereço",
+          "alterar status",
+          "cancelar pedido"
+        ]
+      },
+      {
+        "name": "Logs",
+        "route": "/dashboard/logs",
+        "features": [
+          "ver input da IA",
+          "ver output da IA",
+          "ver erros",
+          "ver modelo e tokens"
+        ]
+      }
+    ]
+  },
+  "database": {
+    "tables": [
+      {
+        "name": "tenants",
+        "columns": {
+          "id": "uuid primary key",
+          "name": "text not null",
+          "slug": "text unique not null",
+          "plan": "text default mvp",
+          "status": "text default active",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "users",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "email": "text not null",
+          "name": "text",
+          "role": "text default owner",
+          "created_at": "timestamptz"
+        }
+      },
+      {
+        "name": "whatsapp_sessions",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "session_name": "text unique not null",
+          "phone_number": "text",
+          "status": "text default pending",
+          "waha_url": "text",
+          "agent_enabled": "boolean default false",
+          "last_connected_at": "timestamptz",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "store_profiles",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "business_type": "text not null",
+          "store_name": "text not null",
+          "address": "text",
+          "opening_hours": "jsonb",
+          "delivery_rules": "jsonb",
+          "payment_methods": "jsonb",
+          "human_contact": "text",
+          "instagram_url": "text",
+          "notes": "text",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "agent_configs",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "template_type": "text default generic",
+          "tone": "text default friendly",
+          "system_prompt": "text",
+          "fallback_message": "text",
+          "after_hours_message": "text",
+          "human_handoff_rules": "jsonb",
+          "training_mode": "boolean default false",
+          "human_approval_required": "boolean default false",
+          "after_hours_enabled": "boolean default true",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "menu_items",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "category": "text not null",
+          "name": "text not null",
+          "description": "text",
+          "price": "numeric(10,2)",
+          "extras_json": "jsonb",
+          "available": "boolean default true",
+          "preparation_time_minutes": "integer",
+          "notes": "text",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "conversations",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "whatsapp_session_id": "uuid references whatsapp_sessions",
+          "customer_phone": "text not null",
+          "customer_name": "text",
+          "mode": "text default ai",
+          "status": "text default open",
+          "summary": "text",
+          "current_order": "jsonb",
+          "last_message_at": "timestamptz",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "messages",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "conversation_id": "uuid references conversations",
+          "sender": "text not null",
+          "content": "text",
+          "message_type": "text default text",
+          "raw_payload": "jsonb",
+          "created_at": "timestamptz"
+        }
+      },
+      {
+        "name": "orders",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "conversation_id": "uuid references conversations",
+          "customer_phone": "text",
+          "customer_name": "text",
+          "items": "jsonb",
+          "subtotal": "numeric(10,2)",
+          "delivery_fee": "numeric(10,2)",
+          "total": "numeric(10,2)",
+          "address": "text",
+          "payment_method": "text",
+          "notes": "text",
+          "status": "text default draft",
+          "created_at": "timestamptz",
+          "updated_at": "timestamptz"
+        }
+      },
+      {
+        "name": "ai_logs",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "conversation_id": "uuid references conversations",
+          "model": "text",
+          "prompt_tokens": "integer",
+          "completion_tokens": "integer",
+          "input_snapshot": "jsonb",
+          "output_snapshot": "jsonb",
+          "parsed_action": "text",
+          "error": "text",
+          "created_at": "timestamptz"
+        }
+      },
+      {
+        "name": "webhook_events",
+        "columns": {
+          "id": "uuid primary key",
+          "tenant_id": "uuid references tenants",
+          "source": "text not null",
+          "event_type": "text",
+          "raw_payload": "jsonb",
+          "processed": "boolean default false",
+          "error": "text",
+          "created_at": "timestamptz"
+        }
+      }
+    ]
+  },
+  "api": {
+    "endpoints": [
+      {
+        "method": "POST",
+        "path": "/api/whatsapp/session/create",
+        "purpose": "Criar sessão WAHA para tenant"
+      },
+      {
+        "method": "GET",
+        "path": "/api/whatsapp/session/:id/status",
+        "purpose": "Consultar status da sessão"
+      },
+      {
+        "method": "GET",
+        "path": "/api/whatsapp/session/:id/qr",
+        "purpose": "Obter QR Code"
+      },
+      {
+        "method": "POST",
+        "path": "/api/whatsapp/session/:id/disconnect",
+        "purpose": "Desconectar WhatsApp"
+      },
+      {
+        "method": "GET",
+        "path": "/api/store/profile",
+        "purpose": "Buscar dados da empresa"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/store/profile",
+        "purpose": "Atualizar dados da empresa"
+      },
+      {
+        "method": "GET",
+        "path": "/api/menu/items",
+        "purpose": "Listar itens do cardápio/base"
+      },
+      {
+        "method": "POST",
+        "path": "/api/menu/items",
+        "purpose": "Criar item"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/menu/items/:id",
+        "purpose": "Atualizar item"
+      },
+      {
+        "method": "DELETE",
+        "path": "/api/menu/items/:id",
+        "purpose": "Excluir item"
+      },
+      {
+        "method": "GET",
+        "path": "/api/agent/config",
+        "purpose": "Buscar configuração do agente"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/agent/config",
+        "purpose": "Atualizar configuração do agente"
+      },
+      {
+        "method": "POST",
+        "path": "/api/agent/toggle",
+        "purpose": "Ativar/desativar IA"
+      },
+      {
+        "method": "GET",
+        "path": "/api/conversations",
+        "purpose": "Listar conversas"
+      },
+      {
+        "method": "GET",
+        "path": "/api/conversations/:id",
+        "purpose": "Ver conversa"
+      },
+      {
+        "method": "POST",
+        "path": "/api/conversations/:id/takeover",
+        "purpose": "Humano assume conversa"
+      },
+      {
+        "method": "POST",
+        "path": "/api/conversations/:id/release",
+        "purpose": "Devolver conversa para IA"
+      },
+      {
+        "method": "POST",
+        "path": "/api/conversations/:id/send-message",
+        "purpose": "Enviar mensagem manual"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders",
+        "purpose": "Listar pedidos"
+      },
+      {
+        "method": "GET",
+        "path": "/api/orders/:id",
+        "purpose": "Ver pedido"
+      },
+      {
+        "method": "PUT",
+        "path": "/api/orders/:id/status",
+        "purpose": "Atualizar status do pedido"
+      },
+      {
+        "method": "GET",
+        "path": "/api/logs/ai",
+        "purpose": "Listar logs de IA"
+      },
+      {
+        "method": "POST",
+        "path": "/api/webhooks/waha",
+        "purpose": "Receber eventos WAHA"
+      }
+    ]
+  },
+  "n8n_workflows": [
+    {
+      "name": "waha_incoming_message_handler",
+      "trigger": "WAHA webhook",
+      "steps": [
+        "receive_waha_event",
+        "save_webhook_event",
+        "extract_session_and_message",
+        "find_whatsapp_session",
+        "find_tenant",
+        "find_or_create_conversation",
+        "save_incoming_message",
+        "check_agent_enabled",
+        "check_conversation_mode",
+        "check_business_hours",
+        "load_store_profile",
+        "load_agent_config",
+        "load_recent_messages",
+        "load_menu_items",
+        "build_ai_context",
+        "call_llm",
+        "parse_json",
+        "validate_action",
+        "handle_handoff_if_needed",
+        "create_order_if_confirmed",
+        "send_reply_via_waha",
+        "save_outgoing_message",
+        "save_ai_log"
+      ]
+    },
+    {
+      "name": "order_confirmed_notify_team",
+      "trigger": "internal_order_confirmed_event",
+      "steps": [
+        "format_order_summary",
+        "send_to_internal_whatsapp_or_panel",
+        "update_order_status"
+      ]
+    },
+    {
+      "name": "human_handoff_handler",
+      "trigger": "ai_handoff_action",
+      "steps": [
+        "update_conversation_mode_to_human",
+        "update_status_to_human_handoff",
+        "notify_store_team",
+        "stop_ai_replies_until_release"
+      ]
+    },
+    {
+      "name": "after_hours_reply",
+      "trigger": "incoming_message_outside_business_hours",
+      "steps": [
+        "check_after_hours_enabled",
+        "send_after_hours_message",
+        "optionally_collect_order_for_next_open_period"
+      ]
+    }
+  ],
+  "ai_agent": {
+    "actions": [
+      "reply",
+      "ask_clarification",
+      "send_menu",
+      "create_order_draft",
+      "confirm_order",
+      "handoff_to_human",
+      "out_of_hours_reply",
+      "ignore"
+    ],
+    "output_schema": {
+      "action": "string enum",
+      "reply": "string|null",
+      "confidence": "number 0-1",
+      "needs_human": "boolean",
+      "reason": "string",
+      "order_state": {
+        "items": [
+          {
+            "name": "string",
+            "quantity": "number",
+            "unit_price": "number|null",
+            "notes": "string|null"
+          }
+        ],
+        "subtotal": "number|null",
+        "delivery_fee": "number|null",
+        "total": "number|null",
+        "address": "string|null",
+        "payment_method": "string|null",
+        "missing_fields": [
+          "string"
+        ]
+      },
+      "handoff": {
+        "required": "boolean",
+        "reason": "string|null"
+      }
+    },
+    "hard_rules": [
+      "não inventar produto",
+      "não inventar preço",
+      "não inventar horário",
+      "não inventar taxa de entrega",
+      "não prometer prazo exato se não informado",
+      "não confirmar pedido sem confirmação explícita",
+      "não responder quando conversa estiver em modo humano",
+      "acionar humano em reclamações",
+      "acionar humano se cliente pedir atendente",
+      "perguntar campos faltantes",
+      "responder sempre em JSON válido"
+    ],
+    "handoff_triggers": [
+      "cliente pede humano",
+      "reclamação",
+      "xingamento",
+      "reembolso",
+      "pedido errado",
+      "cancelamento de pedido confirmado",
+      "informação ausente no contexto",
+      "desconto não cadastrado",
+      "item indisponível com insistência",
+      "baixa confiança",
+      "erro ao calcular total",
+      "erro ao enviar mensagem"
+    ],
+    "confidence_threshold": 0.7
+  },
+  "prompts": {
+    "base_lanchonete": "Você é o atendente virtual da {{store_name}}.\n\nObjetivo:\nAtender clientes pelo WhatsApp, responder dúvidas, apresentar o cardápio,\nmontar pedidos e encaminhar pedidos confirmados para a equipe.\n\nRegras obrigatórias:\n- Use apenas as informações fornecidas no contexto.\n- Nunca invente preço, produto, promoção, horário ou taxa de entrega.\n- Se uma informação não existir, pergunte ou acione handoff humano.\n- Seja educado, direto e natural.\n- Não fale que é uma IA, a menos que o cliente pergunte.\n- Se o cliente pedir atendente humano, acione handoff.\n- Se houver reclamação, erro no pedido, reembolso, irritação ou xingamento, acione handoff.\n- Antes de confirmar pedido, colete itens, quantidades, endereço ou retirada, forma de pagamento e confirmação final.\n- Não confirme pedido sem o cliente dizer claramente que confirma.\n- Sempre responda em JSON válido.",
+    "base_barbearia": "Você é o atendente virtual da {{store_name}}, uma barbearia.\n\nObjetivo:\nResponder dúvidas, apresentar serviços, informar preços e horários,\ncoletar dados para agendamento e chamar humano quando necessário.\n\nRegras:\n- Use apenas os serviços, preços e horários cadastrados.\n- Não invente disponibilidade de agenda.\n- Se o cliente quiser marcar horário e não houver integração de agenda, colete nome, serviço desejado, dia e período preferido.\n- Encaminhe para confirmação humana.\n- Responda sempre em JSON válido.",
+    "base_pizzaria": "Você é o atendente virtual da {{store_name}}, uma pizzaria.\n\nObjetivo:\nApresentar sabores, tamanhos, preços, bordas, bebidas, promoções cadastradas\ne montar pedidos de delivery ou retirada.\n\nRegras:\n- Não invente sabor, preço, promoção ou taxa.\n- Confirme tamanho da pizza, sabores, borda, bebidas, endereço e pagamento.\n- Se a pizza puder ser meio a meio, use somente sabores cadastrados.\n- Não confirme pedido sem confirmação final do cliente.\n- Responda sempre em JSON válido."
+  },
+  "conversation_modes": [
+    "ai",
+    "human",
+    "paused",
+    "closed"
+  ],
+  "conversation_statuses": [
+    "open",
+    "waiting_customer",
+    "waiting_store",
+    "order_draft",
+    "order_confirmed",
+    "human_handoff",
+    "closed"
+  ],
+  "order_statuses": [
+    "draft",
+    "pending_confirmation",
+    "confirmed",
+    "sent_to_kitchen",
+    "preparing",
+    "ready",
+    "out_for_delivery",
+    "completed",
+    "cancelled"
+  ],
+  "pilot_test_cases": [
+    {
+      "name": "pergunta de cardápio",
+      "customer_message": "Tem x-bacon?",
+      "expected": "IA responde se há X-Bacon, preço e descrição curta."
+    },
+    {
+      "name": "montar pedido",
+      "customer_message": "Quero 2 x-bacon e uma coca.",
+      "expected": "IA identifica itens, calcula subtotal se existirem e pergunta endereço/retirada e pagamento."
+    },
+    {
+      "name": "item inexistente",
+      "customer_message": "Tem sushi?",
+      "expected": "IA não inventa e oferece opções disponíveis."
+    },
+    {
+      "name": "reclamação",
+      "customer_message": "Meu pedido veio errado.",
+      "expected": "IA pede desculpas e aciona humano."
+    },
+    {
+      "name": "fora do horário",
+      "customer_message": "Boa noite, está aberto?",
+      "expected": "IA verifica horário e responde conforme configuração."
+    },
+    {
+      "name": "confirmação de pedido",
+      "customer_message": "Pode confirmar.",
+      "expected": "IA confirma somente se itens, endereço/retirada e pagamento estiverem preenchidos."
+    }
+  ],
+  "development_checklist": [
+    "Criar projeto Next.js",
+    "Configurar Supabase",
+    "Criar tabelas",
+    "Configurar RLS por tenant",
+    "Criar layout do dashboard",
+    "Subir WAHA",
+    "Criar sessão WAHA e QR Code",
+    "Subir n8n",
+    "Criar workflow principal",
+    "Conectar n8n ao banco",
+    "Conectar n8n ao WAHA",
+    "Conectar n8n ao LLM",
+    "Implementar prompt lanchonete",
+    "Forçar JSON",
+    "Salvar logs",
+    "Criar tela de conversas",
+    "Criar handoff humano",
+    "Testar piloto da lanchonete"
+  ],
+  "success_metrics": [
+    "80% ou mais das perguntas simples respondidas corretamente",
+    "IA não inventa preço",
+    "IA não confirma pedido incompleto",
+    "dono da loja consegue assumir conversa",
+    "pedidos chegam compreensíveis para equipe",
+    "redução perceptível de mensagens repetitivas"
+  ],
+  "roadmap": {
+    "v1": [
+      "billing",
+      "planos por mensagens",
+      "multiusuário por loja",
+      "upload por planilha",
+      "templates por segmento",
+      "dashboard de métricas"
+    ],
+    "v2": [
+      "WhatsApp Cloud API oficial",
+      "agenda",
+      "delivery",
+      "pagamento",
+      "campanhas com opt-in",
+      "RAG",
+      "white label"
+    ],
+    "v3": [
+      "marketplace de templates",
+      "Instagram DM",
+      "Messenger",
+      "chat no site",
+      "CRM simples",
+      "automações pós-venda"
+    ]
+  },
+  "development_status": {
+    "updated_at": "2026-07-04 (sessão 3)",
+    "done": [
+      "Next.js 16 + Tailwind + shadcn/ui rodando (app/)",
+      "Todas as 8 telas do dashboard construídas visualmente",
+      "Login/registro com Supabase Auth real + middleware protegendo rotas",
+      "Projeto Supabase Cloud real conectado (não local)",
+      "schema.sql aplicado: 11 tabelas, índices, RLS por tenant, trigger handle_new_user",
+      "Fluxo de cadastro (signup -> cria tenant + user) testado ponta a ponta",
+      "Minha Empresa (store_profiles) e Configurar IA (agent_configs) com leitura/escrita real no Supabase via Server Components + Server Actions",
+      "Coluna agent_configs.enabled adicionada para o toggle de ligar/desligar o atendente IA",
+      "Bug corrigido: Header era Server Component (next/headers) renderizado dentro de client components, quebrava o build das telas autenticadas",
+      "Tela Pedidos redesenhada como Kanban por etapa, com busca e dialog de detalhes (ainda dados mock)",
+      "Repaginação visual completa: paleta indigo, bug sistêmico de hsl(oklch(...)) inválido corrigido em todo o CSS, fonte Inter corrigida (não era aplicada), tema claro/escuro real via next-themes com botão no Header, sidebar sempre escura por decisão de design (token sidebar-primary fixo)",
+      "WAHA integrado via app/src/lib/waha.ts (sessions, QR, sendText) + rotas /api/whatsapp/session (criar/status/qr/disconnect); tela WhatsApp reescrita pra usar dados reais em vez de mock/timer",
+      "Webhook /api/webhooks/waha implementado: valida HMAC, filtra contatos/grupos ignorados, respeita horário de funcionamento, monta contexto (loja+cardápio+histórico), chama a IA, parseia o JSON de resposta (contrato da seção 12.3) e executa a ação (reply/handoff/confirm_order/create_order_draft), grava em messages/conversations/orders/ai_logs",
+      "Lista de contatos/grupos ignorados (tabela ignored_chats + CRUD via Server Actions) na tela WhatsApp — atende ao pedido do usuário de poder ignorar grupos ou pessoas específicas",
+      "Seleção de provedor de IA em Configurar IA: \"IA da plataforma\" (padrão, usa OPENAI_API_KEY do servidor) ou \"IA própria\" (provider/modelo/token do tenant, salvos em agent_configs.ai_*, token nunca reenviado ao client)",
+      "lib/ai.ts: abstração única (callAi) sobre OpenAI, Anthropic e OpenRouter",
+      "docker-compose.yml (raiz do projeto) subindo o WAHA real via Docker Desktop; usuário decidiu explicitamente (AskUserQuestion) usar a rota /api/webhooks/waha do Next.js direto, sem n8n — serviço n8n removido do compose",
+      "WAHA rodando em http://localhost:3001 (porta 3001 no host pra não conflitar com next dev); app/.env.local com WAHA_BASE_URL/WAHA_API_KEY reais; WEBHOOK_BASE_URL=http://host.docker.internal:3000 (sem precisar de túnel público em dev local, já que o WAHA roda no Docker Desktop e enxerga o host); WAHA_WEBHOOK_SECRET já gerado",
+      "Cardápio/Base, Conversas, Pedidos e Dashboard inicial religados ao Supabase (estavam mockados mesmo com o webhook já gravando dados reais) — mesmo padrão Server Component + Server Actions",
+      "menu_items ganhou coluna ingredients (jsonb); formulário e contexto da IA no webhook já usam",
+      "Pedidos: Kanban ligado à tabela orders real + drag-and-drop nativo entre colunas (sem lib nova)",
+      "Conversas: mensagens reais, assumir/devolver pra IA, responder como humano de verdade via WAHA",
+      "Importação de cardápio via PDF/imagem com tela de revisão antes de salvar (nova dependência: pdf-parse v2, sem compilação nativa) — extrai texto real de PDF ou usa visão da IA (imagem ou PDF escaneado)",
+      "Corrigido bug de status@broadcast/@newsletter sendo tratado como cliente real no webhook (dava erro 500 no WAHA)",
+      "Corrigido erro de build de produção pré-existente em dashboard/logs/page.tsx — `npx next build` passa 100% limpo agora",
+      "Logs da IA religado a dados reais (ai_logs + join em conversations) — última tela mockada, agora todas as 8 telas usam Supabase de verdade",
+      "Kanban de Pedidos ganhou coluna pending_confirmation (pedidos com aprovação humana pendente não ficam mais invisíveis)",
+      "Resolução de @lid (WhatsApp esconde número real do cliente em alguns casos) via WAHA GET /api/{session}/lids/{lid}, com coluna conversations.customer_phone_display só para exibição",
+      "Pagamento via PIX funcionando ponta a ponta: chave PIX fixa (já cadastrada em Minha Empresa) + regra no prompt pra IA incluir a chave e o total na confirmação — decisão explícita do usuário de não integrar gateway de pagamento por enquanto",
+      "Fluxo completo testado ponta a ponta com sucesso: cardápio → montagem de pedido → endereço → forma de pagamento (PIX) → confirmação com chave PIX real",
+      "Dados de teste/depuração limpos a pedido do usuário (conversations, messages, orders, ai_logs, webhook_events) para começar um teste do zero"
+    ],
+    "setup_decisions": [
+      "Projeto Supabase usa chaves novas: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e SUPABASE_SECRET_KEY (não anon/service_role)",
+      "Funções SECURITY DEFINER (handle_new_user, get_user_tenant_id) exigem 'set search_path = public, pg_temp' explícito, senão o trigger em auth.users falha (role do GoTrue não tem 'public' no search_path)",
+      "Confirmação de e-mail desativada no Supabase Auth durante dev (evita rate limit); reativar + configurar SMTP antes do piloto real",
+      "Sidebar permanece sempre com fundo escuro (navy) independente do tema claro/escuro escolhido — só o conteúdo principal alterna",
+      "Orquestração implementada direto em rotas Next.js (não em n8n) — n8n nunca chegou a ser montado neste projeto; o mesmo contrato de JSON da IA e as mesmas regras de handoff/pedido da seção 12 foram seguidos",
+      "Nome de sessão WAHA por tenant é determinístico: tenant_<tenantId sem hifens> — dá pra recalcular sem precisar guardar em lugar nenhum",
+      "agent_configs.ai_api_key nunca é selecionado por inteiro para o client: a Server Component só repassa um booleano has_custom_key"
+    ],
+    "pending": [
+      "OPENAI_API_KEY em app/.env.local ainda é placeholder — falta uma chave real (ou configurar \"minha própria IA\" na tela Configurar IA)",
+      "Rodar a migração SQL da sessão 3 no Supabase (colunas novas em agent_configs/whatsapp_sessions + tabela ignored_chats)",
+      "Cardápio/Base (menu_items) ainda mockado na tela de cadastro, embora o webhook já leia dessa tabela pro contexto da IA",
+      "Etapa 7 - Piloto: não iniciada",
+      "Etapa 7 - Piloto: não iniciada",
+      "Sem integração de gateway de pagamento real (QR dinâmico + confirmação automática) — só chave PIX fixa, por decisão explícita do usuário",
+      "Etapa 7 - Piloto real com a lanchonete: não iniciada"
+    ],
+    "next_suggested_step": "MVP do painel está funcionalmente completo (todas as telas reais, fluxo WhatsApp+IA testado ponta a ponta). Próximo: Etapa 7, piloto real com a lanchonete"
+  },
+  "agent_development_prompt": "Você está desenvolvendo um MVP SaaS de atendimento com IA para WhatsApp.\n\nObjetivo:\nCriar uma aplicação admin onde pequenos negócios conectam o WhatsApp,\nconfiguram um atendente de IA, cadastram dados da loja e ativam/desativam\nrespostas automáticas.\n\nStack:\n- Next.js\n- Tailwind\n- shadcn/ui\n- Supabase Auth\n- Supabase Postgres\n- n8n\n- WAHA\n- OpenAI/Claude/Gemini\n- Docker Compose\n\nPrimeiro caso:\nLanchonete.\n\nPrioridade:\nConstruir rápido um MVP funcional, não uma plataforma perfeita.\n\nEscopo obrigatório:\n- Login\n- Cadastro de empresa\n- Conectar WhatsApp via QR Code do WAHA\n- Configuração do agente IA\n- Cadastro manual de cardápio\n- Botão ativar/desativar IA\n- Webhook de mensagem recebida\n- Workflow n8n para responder\n- Histórico de conversas\n- Handoff humano\n- Pedidos confirmados\n- Logs da IA\n\nRegras:\n- Nunca expor n8n para o usuário final.\n- O painel deve falar com uma API própria.\n- n8n fica como motor de workflow.\n- WAHA é a camada de WhatsApp no MVP.\n- IA deve responder sempre em JSON válido.\n- Não confirmar pedido sem dados obrigatórios.\n- Não inventar preços, produtos ou horários.\n- Implementar isolamento por tenant desde o começo.\n\nEntregue código limpo, simples e evolutivo.\nEvite overengineering."
+}

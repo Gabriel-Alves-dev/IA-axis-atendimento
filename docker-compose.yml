@@ -1,0 +1,26 @@
+services:
+  waha:
+    image: devlikeapro/waha
+    container_name: waha
+    restart: unless-stopped
+    ports:
+      # Porta 3001 no host pra não conflitar com o `next dev` (porta 3000)
+      - "3001:3000"
+    environment:
+      # Valores reais ficam no .env (raiz do projeto, git-ignorado) — veja .env.example
+      # Acesso ao Dashboard / Swagger (http://localhost:3001/dashboard)
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      # Chave usada nas requisições da API (header X-Api-Key) — deve ser igual à
+      # WAHA_API_KEY em app/.env.local
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - TZ=America/Sao_Paulo
+      # Sem webhook global aqui: cada sessão registra seu próprio webhook
+      # (o Next.js faz isso na criação da sessão, ver app/src/lib/waha.ts)
+    volumes:
+      # Sessões do WhatsApp — mantém o login após reiniciar
+      - ./waha/sessions:/app/.sessions
+      # Mídias recebidas/enviadas
+      - ./waha/media:/app/.media
