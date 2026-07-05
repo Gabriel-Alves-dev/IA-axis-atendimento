@@ -22,10 +22,10 @@ export default function Header({ title, subtitle, userEmail }: HeaderProps) {
   }, [])
 
   return (
-    <header className="h-16 px-6 flex items-center justify-between border-b border-border bg-card/50 backdrop-blur-sm">
-      <div>
-        <h2 className="text-base font-semibold text-foreground leading-tight">{title}</h2>
-        {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+    <header className="h-14 md:h-16 px-4 md:px-6 flex items-center justify-between border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
+      <div className="min-w-0">
+        <h2 className="font-heading text-base font-bold text-foreground leading-tight tracking-tight truncate">{title}</h2>
+        {subtitle && <p className="text-xs text-muted-foreground truncate hidden sm:block">{subtitle}</p>}
       </div>
 
       <div className="flex items-center gap-3">

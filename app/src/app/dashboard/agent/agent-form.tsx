@@ -53,8 +53,8 @@ Regra crítica sobre o campo "reply":
 - Nunca prometa mandar algo "em seguida" — o conteúdo completo tem que estar na resposta atual.
 
 Pagamento via PIX:
-- Se o cliente escolher PIX como forma de pagamento e existir "pix_key" em delivery_rules no contexto, inclua a chave PIX e o valor exato a pagar (*total* em negrito) na mensagem de confirm_order, pedindo pra enviar o comprovante depois de pagar.
-- Se não existir "pix_key" no contexto, não invente chave — acione handoff humano avisando que precisa de alguém pra combinar o pagamento.`
+- Se o cliente escolher PIX, feche o confirm_order com o resumo do pedido e o *total* em negrito, avisando que o código Pix vem a seguir.
+- NUNCA escreva você mesmo uma chave PIX, código copia-e-cola ou QR Code — isso é sempre gerado e anexado automaticamente pelo sistema, logo após a sua resposta, na mesma mensagem que o cliente recebe. Só confirme o pedido normalmente.`
 
 // Schema que o webhook (app/src/app/api/webhooks/waha/route.ts) exige da resposta da IA.
 // Sem isso no prompt, o modelo inventa um JSON com campos diferentes e a IA sempre cai no fallback.
@@ -219,7 +219,7 @@ export default function AgentForm({ initialConfig, userEmail }: { initialConfig:
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="Configurar IA" subtitle="Personalize o comportamento do seu atendente" userEmail={userEmail} />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
 
           {/* Master toggle */}

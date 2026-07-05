@@ -77,6 +77,15 @@ export default function WhatsAppClient({
       if (next === 'failed') {
         stopPolling()
       }
+      if (next === 'qr_pending') {
+        // O WAHA pode levar alguns segundos pra sair de STARTING e ficar pronto pro QR —
+        // por isso o QR é buscado aqui (a cada poll) e não logo após criar a sessão.
+        const qrRes = await fetch('/api/whatsapp/session/qr')
+        if (qrRes.ok) {
+          const qrData = await qrRes.json()
+          setQr(qrData.qr)
+        }
+      }
     } catch {
       // mantém o estado atual, tenta de novo no próximo tick
     }
@@ -103,17 +112,8 @@ export default function WhatsAppClient({
         setStatus('connected')
         toast.success('WhatsApp já estava conectado!')
       } else {
-        const qrRes = await fetch('/api/whatsapp/session/qr')
-        const qrData = await qrRes.json()
-        if (qrRes.ok) {
-          setQr(qrData.qr)
-          setStatus('qr_pending')
-          toast.info('QR Code gerado! Escaneie com seu WhatsApp Business.')
-          pollRef.current = setInterval(pollStatus, 3000)
-        } else {
-          setStatus('creating')
-          pollRef.current = setInterval(pollStatus, 3000)
-        }
+        pollRef.current = setInterval(pollStatus, 3000)
+        await pollStatus({ silent: true })
       }
     } catch (err) {
       setStatus('failed')
@@ -155,7 +155,7 @@ export default function WhatsAppClient({
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="WhatsApp" subtitle="Conecte o WhatsApp Business da sua loja" userEmail={userEmail} />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-2xl mx-auto space-y-6">
 
           {/* Status card */}

@@ -42,6 +42,7 @@ export type StoreProfileData = {
   } | null
   payment_methods: string[] | null
   opening_hours: { day: string; open: boolean; start: string; end: string }[] | null
+  has_mp_token?: boolean
 }
 
 function buildInitialForm(profile: StoreProfileData | null): StoreProfileInput {
@@ -64,6 +65,7 @@ function buildInitialForm(profile: StoreProfileData | null): StoreProfileInput {
     minimumOrder: deliveryRules.minimum_order != null ? String(deliveryRules.minimum_order) : '',
     estimatedTime: deliveryRules.estimated_time_minutes != null ? String(deliveryRules.estimated_time_minutes) : '',
     pixKey: deliveryRules.pix_key ?? '',
+    mercadopagoAccessToken: '',
     paymentMethods: {
       pix: paymentMethods.includes('pix'),
       credit: paymentMethods.includes('credit'),
@@ -77,6 +79,7 @@ function buildInitialForm(profile: StoreProfileData | null): StoreProfileInput {
 export default function StoreForm({ initialProfile, userEmail }: { initialProfile: StoreProfileData | null; userEmail?: string | null }) {
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState<StoreProfileInput>(() => buildInitialForm(initialProfile))
+  const hasMpToken = initialProfile?.has_mp_token ?? false
 
   const handleSave = async () => {
     if (!form.storeName.trim() || !form.businessType) {
@@ -98,7 +101,7 @@ export default function StoreForm({ initialProfile, userEmail }: { initialProfil
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="Minha Empresa" subtitle="Dados da loja que a IA usará para atender clientes" userEmail={userEmail} />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-3xl mx-auto space-y-6">
 
           {/* Basic info */}
@@ -197,7 +200,7 @@ export default function StoreForm({ initialProfile, userEmail }: { initialProfil
                   onCheckedChange={v => setForm(f => ({ ...f, pickupEnabled: v }))}
                 />
               </div>
-              <div className="grid grid-cols-3 gap-4 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 <div className="space-y-2">
                   <Label htmlFor="deliveryFee">Taxa de entrega (R$)</Label>
                   <Input
@@ -238,7 +241,7 @@ export default function StoreForm({ initialProfile, userEmail }: { initialProfil
               <CreditCard className="w-4 h-4 text-primary" />
               Formas de pagamento
             </h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               {[
                 { key: 'pix', label: 'PIX' },
                 { key: 'credit', label: 'Cartão de Crédito' },
@@ -258,15 +261,40 @@ export default function StoreForm({ initialProfile, userEmail }: { initialProfil
               ))}
             </div>
             {form.paymentMethods.pix && (
-              <div className="space-y-2">
-                <Label htmlFor="pixKey">Chave PIX</Label>
-                <Input
-                  id="pixKey"
-                  placeholder="CPF, e-mail, telefone ou chave aleatória"
-                  value={form.pixKey}
-                  onChange={e => setForm(f => ({ ...f, pixKey: e.target.value }))}
-                  className="bg-secondary/50"
-                />
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pixKey">Chave PIX (fallback manual)</Label>
+                  <Input
+                    id="pixKey"
+                    placeholder="CPF, e-mail, telefone ou chave aleatória"
+                    value={form.pixKey}
+                    onChange={e => setForm(f => ({ ...f, pixKey: e.target.value }))}
+                    className="bg-secondary/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Usada só se você não conectar o Mercado Pago abaixo: a IA manda essa chave fixa e o pedido entra como &quot;aguardando confirmação&quot; até alguém confirmar o pagamento manualmente.
+                  </p>
+                </div>
+
+                <div className="space-y-2 p-4 rounded-lg bg-secondary/30 border border-border">
+                  <Label htmlFor="mpToken" className="flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5" /> Token de acesso do Mercado Pago (recomendado)
+                  </Label>
+                  <Input
+                    id="mpToken"
+                    type="password"
+                    placeholder={hasMpToken ? '•••••••••••• (token salvo — deixe em branco para manter)' : 'APP_USR-...'}
+                    value={form.mercadopagoAccessToken}
+                    onChange={e => setForm(f => ({ ...f, mercadopagoAccessToken: e.target.value }))}
+                    className="bg-secondary/50"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Cole o &quot;Access Token de produção&quot; da sua própria conta Mercado Pago. Com isso, cada pedido no PIX gera um QR Code/código copia-e-cola real e o pedido só é confirmado automaticamente quando o pagamento cair — sem depender do cliente avisar. O dinheiro cai direto na sua conta Mercado Pago, não passa pela plataforma.
+                  </p>
+                  {hasMpToken && (
+                    <p className="text-xs text-emerald-400">✓ Mercado Pago conectado.</p>
+                  )}
+                </div>
               </div>
             )}
           </section>

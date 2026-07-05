@@ -3,6 +3,10 @@ services:
     image: devlikeapro/waha
     container_name: waha
     restart: unless-stopped
+    # Chromium (engine WEBJS) precisa de mais /dev/shm que o padrão do Docker (64MB) —
+    # sem isso, a sessão inicia e cai sozinha poucos segundos depois com
+    # "Attempted to use detached Frame" e "Session has been logged out".
+    shm_size: 2gb
     ports:
       # Porta 3001 no host pra não conflitar com o `next dev` (porta 3000)
       - "3001:3000"

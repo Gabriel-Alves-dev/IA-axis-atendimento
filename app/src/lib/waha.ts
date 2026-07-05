@@ -46,17 +46,21 @@ export async function startSession(sessionName: string, webhookUrl: string, hmac
 
   const existing = await getSessionStatus(sessionName)
 
-  const res = existing
-    // Sessão já existe no WAHA (mesmo que parada/deslogada): PUT atualiza a config e reinicia.
-    ? await wahaFetch(`/api/sessions/${sessionName}`, {
-        method: 'PUT',
-        body: JSON.stringify({ name: sessionName, start: true, config }),
-      })
-    : await wahaFetch('/api/sessions', {
-        method: 'POST',
-        body: JSON.stringify({ name: sessionName, start: true, config }),
-      })
+  // O campo "start" não inicia a sessão de fato — tanto o POST de criação quanto o
+  // PUT de atualização só gravam a config. É preciso chamar /start explicitamente.
+  if (existing) {
+    await wahaFetch(`/api/sessions/${sessionName}`, {
+      method: 'PUT',
+      body: JSON.stringify({ name: sessionName, config }),
+    })
+  } else {
+    await wahaFetch('/api/sessions', {
+      method: 'POST',
+      body: JSON.stringify({ name: sessionName, config }),
+    })
+  }
 
+  const res = await wahaFetch(`/api/sessions/${sessionName}/start`, { method: 'POST' })
   return (await res.json()) as WahaSession
 }
 

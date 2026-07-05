@@ -8,10 +8,10 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import {
   MessageSquare, Search, Bot, UserCheck,
-  Send, Phone, Loader2,
+  Send, Phone, Loader2, CircleSlash, ChevronLeft,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { getConversationMessages, takeoverConversation, releaseConversation, sendHumanReply } from './actions'
+import { getConversationMessages, takeoverConversation, releaseConversation, closeConversation, sendHumanReply } from './actions'
 
 export type ConversationData = {
   id: string
@@ -71,6 +71,8 @@ export default function ConversationsClient({ initialConversations, userEmail }:
   const [messages, setMessages] = useState<Message[]>([])
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
+  // No celular só cabe um painel por vez: lista OU chat (com botão de voltar).
+  const [mobileChatOpen, setMobileChatOpen] = useState(false)
 
   const selected = conversations.find(c => c.id === selectedId)
 
@@ -139,6 +141,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
 
   const handleSelect = (id: string) => {
     setSelectedId(id)
+    setMobileChatOpen(true)
     loadMessages(id)
   }
 
@@ -159,6 +162,16 @@ export default function ConversationsClient({ initialConversations, userEmail }:
       toast.success('Conversa devolvida para a IA.')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Erro ao devolver conversa')
+    }
+  }
+
+  const handleClose = async (id: string) => {
+    setConversations(cs => cs.map(c => c.id === id ? { ...c, mode: 'ai', status: 'closed' } : c))
+    try {
+      await closeConversation(id)
+      toast.success('Atendimento encerrado. A próxima mensagem do cliente abre uma conversa nova.')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao encerrar atendimento')
     }
   }
 
@@ -183,7 +196,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
 
       <div className="flex flex-1 overflow-hidden">
         {/* List */}
-        <div className="w-80 shrink-0 border-r border-border flex flex-col">
+        <div className={`w-full md:w-80 shrink-0 border-r border-border flex-col ${mobileChatOpen ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-3 border-b border-border">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -242,19 +255,26 @@ export default function ConversationsClient({ initialConversations, userEmail }:
 
         {/* Chat */}
         {selected ? (
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div className="px-5 py-3 border-b border-border bg-card/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center">
+          <div className={`flex-1 flex-col overflow-hidden ${mobileChatOpen ? 'flex' : 'hidden md:flex'}`}>
+            <div className="px-3 md:px-5 py-3 border-b border-border bg-card/50 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <button
+                  onClick={() => setMobileChatOpen(false)}
+                  aria-label="Voltar para a lista"
+                  className="md:hidden w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center shrink-0">
                   <span className="text-xs font-bold text-muted-foreground">
                     {(selected.customer_name ?? displayPhone(selected)).slice(0, 2).toUpperCase()}
                   </span>
                 </div>
-                <div>
-                  <p className="font-semibold text-sm">{selected.customer_name ?? displayPhone(selected)}</p>
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3 h-3 text-muted-foreground" />
-                    <p className="text-xs text-muted-foreground">{displayPhone(selected)}</p>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm truncate">{selected.customer_name ?? displayPhone(selected)}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Phone className="w-3 h-3 text-muted-foreground shrink-0" />
+                    <p className="text-xs text-muted-foreground truncate">{displayPhone(selected)}</p>
                     <Badge variant="outline" className={`text-[9px] h-4 ${STATUS_MAP[selected.status]?.class ?? ''}`}>
                       {STATUS_MAP[selected.status]?.label ?? selected.status}
                     </Badge>
@@ -262,27 +282,40 @@ export default function ConversationsClient({ initialConversations, userEmail }:
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {selected.mode === 'ai' ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleTakeover(selected.id)}
-                    className="text-xs h-7 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
-                  >
-                    <UserCheck className="w-3 h-3 mr-1.5" />
-                    Assumir
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleRelease(selected.id)}
-                    className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
-                  >
-                    <Bot className="w-3 h-3 mr-1.5" />
-                    Devolver à IA
-                  </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                {selected.status !== 'closed' && (
+                  <>
+                    {selected.mode === 'ai' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleTakeover(selected.id)}
+                        className="text-xs h-7 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
+                      >
+                        <UserCheck className="w-3 h-3 mr-1.5" />
+                        Assumir
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRelease(selected.id)}
+                        className="text-xs h-7 border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      >
+                        <Bot className="w-3 h-3 mr-1.5" />
+                        Devolver à IA
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleClose(selected.id)}
+                      className="text-xs h-7 border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
+                    >
+                      <CircleSlash className="w-3 h-3 mr-1.5" />
+                      Encerrar
+                    </Button>
+                  </>
                 )}
               </div>
             </div>
@@ -323,7 +356,16 @@ export default function ConversationsClient({ initialConversations, userEmail }:
             </div>
 
             {/* Reply area */}
-            {selected.mode === 'human' && (
+            {selected.status === 'closed' && (
+              <div className="p-4 border-t border-border bg-card/50">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <CircleSlash className="w-4 h-4" />
+                  <span>Atendimento encerrado — a próxima mensagem do cliente abre uma conversa nova.</span>
+                </div>
+              </div>
+            )}
+
+            {selected.status !== 'closed' && selected.mode === 'human' && (
               <div className="p-4 border-t border-border bg-card/50">
                 <div className="flex gap-2">
                   <Input
@@ -341,7 +383,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
               </div>
             )}
 
-            {selected.mode === 'ai' && (
+            {selected.status !== 'closed' && selected.mode === 'ai' && (
               <div className="p-4 border-t border-border bg-card/50">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Bot className="w-4 h-4 text-primary" />
@@ -351,7 +393,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
             )}
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center">
+          <div className="flex-1 hidden md:flex items-center justify-center">
             <div className="text-center">
               <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <p className="text-muted-foreground font-medium">Nenhuma conversa selecionada</p>

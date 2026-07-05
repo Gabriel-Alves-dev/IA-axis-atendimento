@@ -9,9 +9,16 @@ export default async function StorePage() {
 
   const { data: profile } = await supabase
     .from('store_profiles')
-    .select('*')
+    .select(`
+      business_type, store_name, address, human_contact, instagram_url, notes,
+      delivery_rules, payment_methods, opening_hours,
+      has_mp_token:mercadopago_access_token
+    `)
     .eq('tenant_id', tenantId)
     .maybeSingle()
 
-  return <StoreForm initialProfile={profile as StoreProfileData | null} userEmail={user?.email} />
+  // mercadopago_access_token nunca é lido em texto puro — só sabemos se existe ou não.
+  const safeProfile = profile ? { ...profile, has_mp_token: Boolean(profile.has_mp_token) } : null
+
+  return <StoreForm initialProfile={safeProfile as StoreProfileData | null} userEmail={user?.email} />
 }

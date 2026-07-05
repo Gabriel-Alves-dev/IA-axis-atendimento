@@ -48,6 +48,22 @@ export async function releaseConversation(id: string) {
   revalidatePath('/dashboard/conversations')
 }
 
+export async function closeConversation(id: string) {
+  const supabase = await createClient()
+  const tenantId = await getCurrentTenantId(supabase)
+
+  // Conversa encerrada não é reaproveitada: a próxima mensagem do cliente cria uma
+  // conversa nova e limpa (ver webhook do WAHA), sem herdar histórico nem pedido antigo.
+  const { error } = await supabase
+    .from('conversations')
+    .update({ mode: 'ai', status: 'closed', current_order: null })
+    .eq('id', id)
+    .eq('tenant_id', tenantId)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/conversations')
+}
+
 export async function sendHumanReply(conversationId: string, text: string) {
   if (!text.trim()) return
 

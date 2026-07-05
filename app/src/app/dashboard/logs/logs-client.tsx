@@ -73,11 +73,11 @@ export default function LogsClient({ initialLogs, userEmail }: { initialLogs: Ai
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="Logs da IA" subtitle="Monitoramento técnico de chamadas à IA" userEmail={userEmail} />
 
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6">
         <div className="max-w-4xl mx-auto space-y-6">
 
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {[
               { label: 'Total de chamadas', value: logs.length, icon: Bot, class: 'text-primary' },
               { label: 'Tokens utilizados', value: totalTokens.toLocaleString(), icon: Zap, class: 'text-yellow-400' },
@@ -98,7 +98,7 @@ export default function LogsClient({ initialLogs, userEmail }: { initialLogs: Ai
           </div>
 
           {/* Filters */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input

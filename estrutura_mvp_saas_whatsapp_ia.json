@@ -284,6 +284,8 @@
           "human_contact": "text",
           "instagram_url": "text",
           "notes": "text",
+          "mercadopago_access_token": "text",
+          "mercadopago_webhook_secret": "text",
           "created_at": "timestamptz",
           "updated_at": "timestamptz"
         }
@@ -369,6 +371,9 @@
           "payment_method": "text",
           "notes": "text",
           "status": "text default draft",
+          "mp_payment_id": "text",
+          "pix_copy_paste": "text",
+          "pix_qr_base64": "text",
           "created_at": "timestamptz",
           "updated_at": "timestamptz"
         }
@@ -673,6 +678,7 @@
   ],
   "order_statuses": [
     "draft",
+    "awaiting_payment",
     "pending_confirmation",
     "confirmed",
     "sent_to_kitchen",
@@ -770,7 +776,7 @@
     ]
   },
   "development_status": {
-    "updated_at": "2026-07-04 (sessão 3)",
+    "updated_at": "2026-07-04 (sessão 4)",
     "done": [
       "Next.js 16 + Tailwind + shadcn/ui rodando (app/)",
       "Todas as 8 telas do dashboard construídas visualmente",
@@ -802,7 +808,11 @@
       "Resolução de @lid (WhatsApp esconde número real do cliente em alguns casos) via WAHA GET /api/{session}/lids/{lid}, com coluna conversations.customer_phone_display só para exibição",
       "Pagamento via PIX funcionando ponta a ponta: chave PIX fixa (já cadastrada em Minha Empresa) + regra no prompt pra IA incluir a chave e o total na confirmação — decisão explícita do usuário de não integrar gateway de pagamento por enquanto",
       "Fluxo completo testado ponta a ponta com sucesso: cardápio → montagem de pedido → endereço → forma de pagamento (PIX) → confirmação com chave PIX real",
-      "Dados de teste/depuração limpos a pedido do usuário (conversations, messages, orders, ai_logs, webhook_events) para começar um teste do zero"
+      "Dados de teste/depuração limpos a pedido do usuário (conversations, messages, orders, ai_logs, webhook_events) para começar um teste do zero",
+      "Corrigido bug de pedido duplicado (IA chamava confirm_order 2x pra mesma conversa) com trava de idempotência no webhook",
+      "Pagamento PIX automático via Mercado Pago: token de acesso por tenant (store_profiles.mercadopago_access_token, nunca reenviado ao client, mesmo padrão do has_custom_key da IA), lib/mercadopago.ts (createPixPayment com X-Idempotency-Key, getPayment pra reconsulta autoritativa, verifyMpWebhookSignature), novo webhook /api/webhooks/mercadopago que só confirma pedido quando o pagamento vem 'approved' na API (nunca confia só na notificação recebida)",
+      "confirm_order no webhook agora ramifica em 3 casos pra PIX: Mercado Pago conectado (cobrança real, status awaiting_payment até confirmar) / só chave PIX fixa (fallback antigo, anexada pelo backend, não mais pela IA) / nenhum dos dois (handoff humano em vez de fingir cobrança)",
+      "Kanban de Pedidos: coluna awaiting_payment + exibição do código Pix copia-e-cola no detalhe do pedido"
     ],
     "setup_decisions": [
       "Projeto Supabase usa chaves novas: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY e SUPABASE_SECRET_KEY (não anon/service_role)",
@@ -818,11 +828,13 @@
       "Rodar a migração SQL da sessão 3 no Supabase (colunas novas em agent_configs/whatsapp_sessions + tabela ignored_chats)",
       "Cardápio/Base (menu_items) ainda mockado na tela de cadastro, embora o webhook já leia dessa tabela pro contexto da IA",
       "Etapa 7 - Piloto: não iniciada",
-      "Etapa 7 - Piloto: não iniciada",
-      "Sem integração de gateway de pagamento real (QR dinâmico + confirmação automática) — só chave PIX fixa, por decisão explícita do usuário",
+      "Rodar a migração SQL da sessão 4 no Supabase (store_profiles.mercadopago_access_token/webhook_secret, orders.mp_payment_id/pix_copy_paste/pix_qr_base64 + índice)",
+      "Usuário ainda precisa criar/conectar uma conta Mercado Pago de verdade e colar o Access Token em Minha Empresa antes de validar o pagamento automático em produção",
+      "Integração com Google Maps (Distance Matrix API) pra frete por distância real — não iniciado",
+      "Gestão de entregadores (cadastro + atribuição no Kanban + WhatsApp automático pro entregador) — não iniciado",
       "Etapa 7 - Piloto real com a lanchonete: não iniciada"
     ],
-    "next_suggested_step": "MVP do painel está funcionalmente completo (todas as telas reais, fluxo WhatsApp+IA testado ponta a ponta). Próximo: Etapa 7, piloto real com a lanchonete"
+    "next_suggested_step": "Testar o pagamento PIX automático via Mercado Pago ponta a ponta (usuário precisa conectar uma conta real). Depois: gestão de entregadores, integração Google Maps pra frete, e Etapa 7 (piloto real)."
   },
   "agent_development_prompt": "Você está desenvolvendo um MVP SaaS de atendimento com IA para WhatsApp.\n\nObjetivo:\nCriar uma aplicação admin onde pequenos negócios conectam o WhatsApp,\nconfiguram um atendente de IA, cadastram dados da loja e ativam/desativam\nrespostas automáticas.\n\nStack:\n- Next.js\n- Tailwind\n- shadcn/ui\n- Supabase Auth\n- Supabase Postgres\n- n8n\n- WAHA\n- OpenAI/Claude/Gemini\n- Docker Compose\n\nPrimeiro caso:\nLanchonete.\n\nPrioridade:\nConstruir rápido um MVP funcional, não uma plataforma perfeita.\n\nEscopo obrigatório:\n- Login\n- Cadastro de empresa\n- Conectar WhatsApp via QR Code do WAHA\n- Configuração do agente IA\n- Cadastro manual de cardápio\n- Botão ativar/desativar IA\n- Webhook de mensagem recebida\n- Workflow n8n para responder\n- Histórico de conversas\n- Handoff humano\n- Pedidos confirmados\n- Logs da IA\n\nRegras:\n- Nunca expor n8n para o usuário final.\n- O painel deve falar com uma API própria.\n- n8n fica como motor de workflow.\n- WAHA é a camada de WhatsApp no MVP.\n- IA deve responder sempre em JSON válido.\n- Não confirmar pedido sem dados obrigatórios.\n- Não inventar preços, produtos ou horários.\n- Implementar isolamento por tenant desde o começo.\n\nEntregue código limpo, simples e evolutivo.\nEvite overengineering."
 }

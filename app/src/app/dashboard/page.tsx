@@ -128,7 +128,7 @@ export default async function DashboardPage() {
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="Dashboard" subtitle="Visão geral do seu atendente IA" userEmail={user?.email} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
 
         {/* Status bar */}
         <div className="glass-card rounded-xl p-4 flex flex-wrap items-center gap-6">
@@ -147,7 +147,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Stats grid */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4">
           <StatCard
             title="Conversas hoje"
             value={stats.conversationsToday}

@@ -1988,3 +1988,76 @@ pagamento via PIX fixo, confirmação). Falta: Etapa 7 (piloto real com a
 lanchonete) e, se o usuário quiser no futuro, uma integração de pagamento
 de verdade (gateway com QR dinâmico e confirmação automática).
 ```
+
+---
+
+## 32. Pagamento PIX automático via Mercado Pago (2026-07-04, sessão 4)
+
+Depois de mais um teste real, o usuário reportou um pedido duplicado (2 cards
+gerados pro mesmo pedido — um ao mandar o resumo com a chave PIX fixa, outro
+quando o cliente respondeu "paguei já", porque a IA chamava `confirm_order`
+duas vezes pro mesmo pedido). Corrigido primeiro com uma trava de idempotência
+no webhook (não insere de novo se a conversa já está `order_confirmed` com o
+mesmo total/endereço/forma de pagamento).
+
+O usuário então pediu pra ir direto na causa raiz: integrar um gateway de
+pagamento de verdade, só confirmando o pedido quando o PIX realmente cair —
+nunca de novo por "boa-fé" da palavra do cliente.
+
+```text
+- Escolhido Mercado Pago (0,99% por PIX via API vs 1,19% do Efí, conferido via
+  busca na web antes de decidir — não chutado).
+- Arquitetura: token de acesso do Mercado Pago é POR TENANT (cada loja conecta
+  a própria conta), não um token global da plataforma — mesmo padrão já usado
+  pra chave de IA custom (agent_configs.ai_api_key: nunca é lido de volta pro
+  client, só um boolean has_mp_token). Guardado em
+  store_profiles.mercadopago_access_token, configurável na tela "Minha
+  Empresa". O dinheiro cai direto na conta MP de cada loja, não passa pela
+  plataforma.
+- lib/mercadopago.ts: createPixPayment() (POST /v1/payments, payment_method_id
+  "pix", com X-Idempotency-Key = id do pedido — evita cobrança duplicada se o
+  código rodar 2x pro mesmo pedido), getPayment() (reconsulta autoritativa
+  antes de creditar, nunca confia só na notificação), verifyMpWebhookSignature()
+  (HMAC-SHA256 do manifest "id:..;request-id:..;ts:..;", formato conferido via
+  busca na documentação oficial do Mercado Pago antes de implementar).
+- notification_url é passado por requisição (no createPixPayment), não
+  configurado manualmente no painel do Mercado Pago — simplifica o onboarding
+  pro lojista: só precisa colar o Access Token, mais nada.
+- Novo webhook api/webhooks/mercadopago: acha o pedido por mp_payment_id,
+  busca o token do tenant dono do pedido, valida assinatura SE a loja tiver
+  configurado um webhook secret (opcional — a segurança real está em sempre
+  re-consultar o pagamento via API antes de confiar), e só confirma o pedido
+  se getPayment() retornar status "approved". Aí atualiza o pedido (status
+  pending_confirmation/confirmed conforme human_approval_required), atualiza a
+  conversa e manda confirmação pro cliente via WAHA.
+- webhooks/waha/route.ts: ação confirm_order com payment_method contendo "pix"
+  agora ramifica em 3 casos: (1) loja com Mercado Pago conectado → cria pedido
+  com status "awaiting_payment", gera cobrança PIX real, anexa o código
+  copia-e-cola *depois* da resposta da IA (a IA nunca inventa o código —
+  prompt atualizado pra proibir isso); (2) sem Mercado Pago mas com pix_key
+  fixa cadastrada → mantém o fluxo antigo (chave fixa anexada pelo backend,
+  não pela IA — status pending_confirmation/confirmed direto); (3) nem
+  Mercado Pago nem pix_key → aciona handoff humano em vez de fingir que vai
+  cobrar.
+- Kanban de Pedidos: nova coluna "Aguardando pagamento" (awaiting_payment) +
+  exibição do código Pix copia-e-cola com botão de copiar no detalhe do
+  pedido (útil se a loja precisar reenviar manualmente).
+- Migração aplicada manualmente pelo usuário no SQL Editor do Supabase:
+  store_profiles.mercadopago_access_token, .mercadopago_webhook_secret;
+  orders.mp_payment_id, .pix_copy_paste, .pix_qr_base64 + índice.
+```
+
+### 32.1 Ainda pendente / ideias trazidas pelo usuário nesta sessão
+
+```text
+- Integração com Google Maps (Distance Matrix API) pra calcular frete por
+  distância real em vez de taxa fixa — ainda não iniciado.
+- Gestão de entregadores (estilo "Brandi"): cadastrar entregador, atribuir no
+  card do pedido ao marcar "Pronto", disparar WhatsApp automático pro
+  entregador com resumo do pedido + endereço + link do Maps + forma de
+  pagamento — ainda não iniciado. Ordem sugerida ao usuário: pagamento (feito
+  agora) → entregador (rápido, reusa infra existente) → Maps (refinamento).
+- Testar o fluxo real de ponta a ponta com uma conta Mercado Pago de verdade
+  (o usuário ainda precisa criar/conectar a conta e colar o Access Token em
+  Minha Empresa) antes de considerar esse pedaço validado em produção.
+```

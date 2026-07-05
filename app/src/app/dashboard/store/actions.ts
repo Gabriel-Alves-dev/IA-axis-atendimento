@@ -17,6 +17,8 @@ export type StoreProfileInput = {
   minimumOrder: string
   estimatedTime: string
   pixKey: string
+  /** Só enviado quando o usuário digita um token novo; vazio = manter o atual. */
+  mercadopagoAccessToken: string
   paymentMethods: { pix: boolean; credit: boolean; debit: boolean; cash: boolean }
   openingHours: { day: string; open: boolean; start: string; end: string }[]
 }
@@ -39,7 +41,7 @@ export async function saveStoreProfile(input: StoreProfileInput) {
     .filter(([, enabled]) => enabled)
     .map(([method]) => method)
 
-  const { error } = await supabase.from('store_profiles').upsert({
+  const payload: Record<string, unknown> = {
     tenant_id: tenantId,
     business_type: input.businessType,
     store_name: input.storeName.trim(),
@@ -57,7 +59,14 @@ export async function saveStoreProfile(input: StoreProfileInput) {
     human_contact: input.humanContact.trim() || null,
     instagram_url: input.instagramUrl.trim() || null,
     notes: input.notes.trim() || null,
-  }, { onConflict: 'tenant_id' })
+  }
+
+  // Só sobrescreve o token salvo se o usuário digitou um novo.
+  if (input.mercadopagoAccessToken.trim()) {
+    payload.mercadopago_access_token = input.mercadopagoAccessToken.trim()
+  }
+
+  const { error } = await supabase.from('store_profiles').upsert(payload, { onConflict: 'tenant_id' })
 
   if (error) throw new Error(error.message)
 

@@ -83,6 +83,10 @@ create table if not exists store_profiles (
   human_contact    text,
   instagram_url    text,
   notes            text,
+  mercadopago_access_token  text,
+  -- token do Mercado Pago da PRÓPRIA loja (não da plataforma) — cada tenant recebe na sua conta.
+  mercadopago_webhook_secret text,
+  -- opcional: "Assinatura secreta" do Mercado Pago, pra validar a notificação de pagamento.
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
@@ -207,10 +211,16 @@ create table if not exists orders (
   payment_method   text,
   notes            text,
   status           text not null default 'draft',
-  -- draft | pending_confirmation | confirmed | sent_to_kitchen | preparing | ready | out_for_delivery | completed | cancelled
+  -- draft | awaiting_payment | pending_confirmation | confirmed | sent_to_kitchen | preparing | ready | out_for_delivery | completed | cancelled
+  mp_payment_id    text,
+  -- id do pagamento no Mercado Pago (fluxo de PIX automático)
+  pix_copy_paste   text,
+  pix_qr_base64    text,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now()
 );
+
+create index if not exists idx_orders_mp_payment_id on orders(mp_payment_id) where mp_payment_id is not null;
 
 create trigger trg_orders_updated_at
   before update on orders

@@ -10,7 +10,7 @@ import {
 import { toast } from 'sonner'
 import {
   ShoppingBag, MapPin, CreditCard,
-  Phone, Clock, Loader2, Search,
+  Phone, Clock, Loader2, Search, Copy,
 } from 'lucide-react'
 import { updateOrderStatus } from './actions'
 
@@ -29,9 +29,11 @@ export type OrderData = {
   notes: string | null
   status: string
   created_at: string
+  pix_copy_paste?: string | null
 }
 
 const STATUS_COLUMNS = [
+  { value: 'awaiting_payment', label: 'Aguardando pagamento', dot: 'bg-sky-400', badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/20' },
   { value: 'pending_confirmation', label: 'Aguardando confirmação', dot: 'bg-orange-400', badgeClass: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
   { value: 'confirmed', label: 'Confirmado', dot: 'bg-emerald-400', badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
   { value: 'preparing', label: 'Preparando', dot: 'bg-yellow-400', badgeClass: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' },
@@ -103,10 +105,10 @@ export default function OrdersClient({ initialOrders, userEmail }: { initialOrde
     <div className="flex flex-col flex-1 overflow-hidden">
       <Header title="Pedidos" subtitle="Acompanhe e gerencie pedidos confirmados" userEmail={userEmail} />
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
 
         {/* Summary */}
-        <div className="grid grid-cols-3 gap-4 max-w-3xl">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4 max-w-3xl">
           {[
             { label: 'Total do dia', value: money(todayTotal), class: 'text-primary' },
             { label: 'Pedidos ativos', value: orders.filter(o => !['completed', 'cancelled'].includes(o.status)).length, class: 'text-foreground' },
@@ -270,6 +272,24 @@ export default function OrdersClient({ initialOrders, userEmail }: { initialOrde
                     </div>
                   </div>
                 </div>
+
+                {selectedOrder.pix_copy_paste && (
+                  <div className="p-3 rounded-lg bg-sky-500/5 border border-sky-500/20 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-sky-400">Código Pix copia-e-cola</p>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(selectedOrder.pix_copy_paste ?? '')
+                          toast.success('Código Pix copiado')
+                        }}
+                        className="text-sky-400 hover:text-sky-300"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground break-all font-mono">{selectedOrder.pix_copy_paste}</p>
+                  </div>
+                )}
 
                 {selectedOrder.notes && (
                   <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/20">

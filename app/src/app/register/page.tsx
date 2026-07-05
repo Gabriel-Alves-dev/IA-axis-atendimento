@@ -8,7 +8,14 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Bot, Loader2, Eye, EyeOff } from 'lucide-react'
+import { AxisMark, AxisSignature } from '@/components/brand/AxisLogo'
+import { Loader2, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
+
+const steps = [
+  'Crie sua conta em menos de um minuto',
+  'Conecte o WhatsApp da sua loja com um QR Code',
+  'Cadastre o cardápio e deixe a IA atender por você',
+]
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -48,25 +55,50 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
-      {/* Background glow effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/5 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-primary/3 blur-3xl" />
-      </div>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
 
-      <div className="relative w-full max-w-[440px] mx-4">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 glow-primary">
-            <Bot className="w-7 h-7 text-primary" />
+      {/* Painel de marca */}
+      <div className="lg:w-[45%] xl:w-2/5 bg-sidebar text-sidebar-foreground flex flex-col justify-between p-8 lg:p-12">
+        <div className="flex items-center gap-3">
+          <AxisMark className="w-10 h-10" />
+          <div className="leading-tight">
+            <p className="font-heading font-bold text-lg tracking-tight">
+              axis <span className="text-sidebar-primary">atendimento</span>
+            </p>
+            <p className="text-xs text-sidebar-foreground/50">IA no WhatsApp</p>
           </div>
-          <h1 className="text-2xl font-bold text-foreground">Criar conta</h1>
-          <p className="text-muted-foreground text-sm mt-1">Configure seu atendente IA em minutos</p>
         </div>
 
-        {/* Card */}
-        <div className="glass-card rounded-2xl p-8">
+        <div className="hidden lg:block space-y-8 my-12">
+          <h1 className="font-heading text-3xl xl:text-4xl font-bold leading-tight tracking-tight">
+            Comece agora.
+            <br />
+            <span className="text-sidebar-primary">É mais simples do que parece.</span>
+          </h1>
+
+          <ul className="space-y-4">
+            {steps.map((text, i) => (
+              <li key={i} className="flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-sidebar-primary shrink-0 mt-0.5" />
+                <span className="text-sm text-sidebar-foreground/80 leading-relaxed">{text}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="hidden lg:block">
+          <AxisSignature variant="sidebar" />
+        </div>
+      </div>
+
+      {/* Formulário */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-12">
+        <div className="w-full max-w-sm">
+          <div className="mb-8">
+            <h2 className="font-heading text-2xl font-bold text-foreground tracking-tight">Criar conta</h2>
+            <p className="text-muted-foreground text-sm mt-1.5">Configure seu atendente IA em minutos</p>
+          </div>
+
           <form onSubmit={handleRegister} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Seu nome</Label>
@@ -78,7 +110,7 @@ export default function RegisterPage() {
                 onChange={(e) => setName(e.target.value)}
                 required
                 disabled={loading}
-                className="bg-secondary/50 border-border/60"
+                className="bg-card h-11"
               />
             </div>
 
@@ -92,7 +124,7 @@ export default function RegisterPage() {
                 onChange={(e) => setCompanyName(e.target.value)}
                 required
                 disabled={loading}
-                className="bg-secondary/50 border-border/60"
+                className="bg-card h-11"
               />
             </div>
 
@@ -106,7 +138,7 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
-                className="bg-secondary/50 border-border/60"
+                className="bg-card h-11"
               />
             </div>
 
@@ -122,7 +154,7 @@ export default function RegisterPage() {
                   required
                   minLength={6}
                   disabled={loading}
-                  className="bg-secondary/50 border-border/60 pr-10"
+                  className="bg-card h-11 pr-10"
                 />
                 <button
                   type="button"
@@ -137,7 +169,7 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium mt-2"
+              className="w-full h-11 bg-primary text-primary-foreground hover:bg-primary/90 font-medium mt-2"
               disabled={loading}
             >
               {loading ? (
@@ -157,11 +189,11 @@ export default function RegisterPage() {
               Entrar
             </Link>
           </div>
-        </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Ao criar sua conta, você concorda com nossos termos de uso.
-        </p>
+          <div className="mt-10 text-center lg:hidden">
+            <AxisSignature />
+          </div>
+        </div>
       </div>
     </div>
   )

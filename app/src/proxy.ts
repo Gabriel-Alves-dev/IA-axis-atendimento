@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -23,7 +23,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Se o Supabase estiver inacessível (oscilação de rede/DNS), getUser lança —
+  // isso é "não consegui verificar", não "não autenticado". Nesse caso deixamos a
+  // requisição passar em vez de chutar um usuário logado pro /login.
+  let user = null
+  let authUnavailable = false
+  try {
+    const { data, error } = await supabase.auth.getUser()
+    user = data.user
+    // supabase-js embrulha falha de rede em AuthRetryableFetchError (status 0) em vez
+    // de lançar — sessão inválida/expirada vem com 401/403 e essa deve ir pro login.
+    if (error && (error.status === 0 || error.name === 'AuthRetryableFetchError')) {
+      authUnavailable = true
+    }
+  } catch {
+    authUnavailable = true
+  }
 
   const { pathname } = request.nextUrl
 
@@ -32,7 +47,7 @@ export async function middleware(request: NextRequest) {
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route))
 
   // Redirecionar usuário não autenticado para login
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !authUnavailable) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

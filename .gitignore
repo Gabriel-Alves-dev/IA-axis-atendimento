@@ -1,8 +1,9 @@
-# Dados persistentes do WAHA local (sessões do WhatsApp, mídias)
-waha/
+# Dados persistentes do WAHA local (sessões do WhatsApp, mídias) — só na raiz;
+# sem a âncora "/" a regra também ignorava app/src/app/api/webhooks/waha/
+/waha/
 
 # Dados persistentes de um teste antigo com n8n (não usado mais no projeto)
-n8n/
+/n8n/
 
 # Segredos usados pelo docker-compose.yml (WAHA_API_KEY, senha do dashboard etc.)
 .env
