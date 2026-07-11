@@ -6,4 +6,6 @@
 /n8n/
 
 # Segredos usados pelo docker-compose.yml (WAHA_API_KEY, senha do dashboard etc.)
+# e pelo docker-compose.prod.yml na VM (.env.production). O *.example é versionado.
 .env
+.env.production

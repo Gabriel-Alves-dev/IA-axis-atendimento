@@ -1,0 +1,7 @@
+# Troque pelo seu subdomínio real (o mesmo do WEBHOOK_BASE_URL no .env.production).
+# O Caddy emite e renova o certificado HTTPS sozinho via Let's Encrypt —
+# basta o DNS do domínio já estar apontando pro IP da VM quando ele subir.
+
+app.seudominio.com.br {
+	reverse_proxy app:3000
+}

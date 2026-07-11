@@ -1,0 +1,68 @@
+# Produção na VM (Oracle Always Free / VPS): painel Next.js + WAHA + Caddy (HTTPS).
+# Supabase continua gerenciado (supabase.com) — não roda aqui.
+#
+# Uso na VM:
+#   cp .env.production.example .env.production   # e preencher
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# O WAHA NÃO é exposto na internet: app e WAHA conversam pela rede interna do
+# compose (http://waha:3000). Pra acessar o dashboard do WAHA, use túnel SSH:
+#   ssh -L 3001:localhost:3001 ubuntu@IP_DA_VM   (e descomente o "ports" do waha)
+
+services:
+  app:
+    build:
+      context: ./app
+      args:
+        # Embutidas no bundle no build — vêm do .env.production via --env-file
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}
+    container_name: axis-app
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      # Dentro da rede do compose o WAHA é alcançado pelo nome do serviço,
+      # não por localhost — sobrepõe o que estiver no .env.production.
+      WAHA_BASE_URL: http://waha:3000
+    depends_on:
+      - waha
+
+  waha:
+    # Tag :arm é a build oficial pra ARM64 (VM Ampere A1 da Oracle).
+    # Num VPS x86 comum, troque para devlikeapro/waha (sem sufixo).
+    image: devlikeapro/waha:arm
+    container_name: waha
+    restart: unless-stopped
+    # Chromium precisa de /dev/shm maior que o padrão de 64MB do Docker,
+    # senão a sessão cai sozinha segundos depois de iniciar.
+    shm_size: 2gb
+    environment:
+      - WAHA_API_KEY=${WAHA_API_KEY}
+      - WAHA_DASHBOARD_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WAHA_DASHBOARD_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - WHATSAPP_SWAGGER_USERNAME=${WAHA_DASHBOARD_USERNAME}
+      - WHATSAPP_SWAGGER_PASSWORD=${WAHA_DASHBOARD_PASSWORD}
+      - TZ=America/Sao_Paulo
+    volumes:
+      - ./waha/sessions:/app/.sessions
+      - ./waha/media:/app/.media
+    # ports:
+    #   - "127.0.0.1:3001:3000"  # só localhost da VM, pro túnel SSH do dashboard
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:
