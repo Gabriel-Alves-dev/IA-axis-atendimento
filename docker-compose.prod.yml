@@ -1,13 +1,18 @@
-# Produção na VM (Oracle Always Free / VPS): painel Next.js + WAHA + Caddy (HTTPS).
-# Supabase continua gerenciado (supabase.com) — não roda aqui.
+# Produção em VPS compartilhada (já roda Nginx/PM2/outros projetos): painel
+# Next.js + WAHA via Docker. O Nginx do HOST (não containerizado) faz o proxy
+# reverso e o HTTPS — não subimos Caddy nem tocamos nas portas 80/443, que já
+# pertencem ao Nginx existente. Supabase continua gerenciado (supabase.com).
 #
-# Uso na VM:
+# Uso na VPS (dentro do diretório do projeto, ex.: /srv/projects/gabriel/axis):
 #   cp .env.production.example .env.production   # e preencher
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 #
-# O WAHA NÃO é exposto na internet: app e WAHA conversam pela rede interna do
-# compose (http://waha:3000). Pra acessar o dashboard do WAHA, use túnel SSH:
-#   ssh -L 3001:localhost:3001 ubuntu@IP_DA_VM   (e descomente o "ports" do waha)
+# O app fica em 127.0.0.1:3100 (só acessível dentro da própria VPS) — o Nginx
+# do host aponta o domínio público pra essa porta (ver deploy/nginx-app.conf).
+# O WAHA NÃO é exposto em porta nenhuma do host: app e WAHA conversam pela
+# rede interna do compose (http://waha:3000). Pra acessar o dashboard do WAHA,
+# use túnel SSH: ssh -L 3001:localhost:3001 root@IP_DA_VPS (e descomente o
+# "ports" do waha abaixo).
 
 services:
   app:
@@ -24,6 +29,10 @@ services:
       # Dentro da rede do compose o WAHA é alcançado pelo nome do serviço,
       # não por localhost — sobrepõe o que estiver no .env.production.
       WAHA_BASE_URL: http://waha:3000
+    ports:
+      # Só localhost da VPS — porta escolhida por não conflitar com nada que
+      # já roda aí (PM2/outros projetos usam 3000-3025, 5xxx, 8xxx, etc.)
+      - "127.0.0.1:3100:3000"
     depends_on:
       - waha
 
@@ -31,7 +40,7 @@ services:
     # Imagem padrão (x86_64) — vale pra Hetzner/DigitalOcean/qualquer VPS comum.
     # Numa VM ARM (ex.: Oracle Ampere), troque para devlikeapro/waha:arm.
     image: devlikeapro/waha
-    container_name: waha
+    container_name: axis-waha
     restart: unless-stopped
     # Chromium precisa de /dev/shm maior que o padrão de 64MB do Docker,
     # senão a sessão cai sozinha segundos depois de iniciar.
@@ -47,22 +56,4 @@ services:
       - ./waha/sessions:/app/.sessions
       - ./waha/media:/app/.media
     # ports:
-    #   - "127.0.0.1:3001:3000"  # só localhost da VM, pro túnel SSH do dashboard
-
-  caddy:
-    image: caddy:2
-    container_name: caddy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
-
-volumes:
-  caddy_data:
-  caddy_config:
+    #   - "127.0.0.1:3101:3000"  # só localhost da VPS, pro túnel SSH do dashboard

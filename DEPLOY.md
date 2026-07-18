@@ -1,98 +1,120 @@
-# Deploy num VPS (Hetzner)
+# Deploy na VPS (Hostinger, compartilhada)
 
-Arquitetura: **um servidor** rodando painel Next.js + WAHA + Caddy (HTTPS)
-via `docker-compose.prod.yml`. O **Supabase continua gerenciado** no supabase.com.
+Arquitetura: painel Next.js + WAHA rodando em **Docker**, isolados dos outros
+projetos que já vivem nessa VPS (PM2, outros containers, etc.). O **Nginx do
+host** (não containerizado) faz o proxy reverso e o HTTPS pro domínio público
+— não subimos Caddy nem tocamos nas portas 80/443, que já são do Nginx
+existente. O **Supabase continua gerenciado** no supabase.com.
 
 ```
-Internet ──HTTPS──▶ Caddy ──▶ app (Next.js :3000) ──▶ Supabase (nuvem)
-                                 │  ▲
-                                 ▼  │ (rede interna do compose)
-                               WAHA (:3000, não exposto)
+Internet ──HTTPS──▶ Nginx (host, :80/:443) ──▶ app (Docker, 127.0.0.1:3100) ──▶ Supabase (nuvem)
+                                                   │  ▲
+                                                   ▼  │ (rede interna do compose)
+                                                 WAHA (não exposto)
 ```
 
-> Nota: tentamos primeiro a Oracle Cloud Always Free (gratuita), mas a região
-> São Paulo ficou sem capacidade da VM ARM gratuita por mais de 12h seguidas
-> (isso é comum lá — ver `deploy/create-vm-retry.ps1` se quiser retomar essa
-> rota depois, é só um script de retry). Hetzner custa uns €4,5-5/mês
-> (~R$ 25-30) mas cria a VM na hora, sem fila.
+> Histórico: tentamos primeiro a Oracle Cloud Always Free (gratuita) e depois
+> cogitamos Hetzner, mas como você já tinha essa VPS da Hostinger rodando
+> outros projetos, decidimos reaproveitá-la em vez de pagar por outra.
 
-## 1. Criar o servidor (uma vez)
+## 0. Antes de tudo — não é uma VPS vazia
 
-1. Conta em [hetzner.com/cloud](https://www.hetzner.com/cloud) (pede cartão).
-2. **New Project** → **Add Server**:
-   - Location: **Nuremberg** ou **Falkenstein** (Alemanha — mais barato) ou
-     **Ashburn** (EUA) se preferir menor latência pras APIs do Mercado Pago/OpenAI.
-     (Hetzner não tem datacenter no Brasil; a diferença de latência pro
-     usuário final é pequena pra um painel administrativo.)
-   - Image: **Ubuntu 24.04**
-   - Type: **CX22** (2 vCPU / 4GB RAM / 40GB disco, ~€4,5/mês) — sobra pro
-     painel + WAHA + Caddy.
-   - SSH key: cole sua chave pública (`type C:\Users\trabs\.ssh\id_ed25519.pub`
-     no PowerShell pra copiar).
-   - Firewall: pode criar um liberando só **22, 80, 443** — o assistente da
-     Hetzner tem um botão "Create Firewall" nessa mesma tela.
-3. Criar. Em ~30s a VM está no ar com um IP público — anota ele.
+Essa VPS já hospeda vários projetos via PM2 e Nginx (portas 3000-3025, 5xxx,
+8xxx ocupadas, Postgres, MongoDB). O compose deste projeto foi ajustado pra
+não conflitar com nada disso:
 
-## 2. Preparar o servidor
+- App exposto só em `127.0.0.1:3100` (porta livre, escolhida a dedo).
+- WAHA sem nenhuma porta pro host (só rede interna do Docker).
+- Nada mexe no Nginx do host além de **adicionar** um novo site
+  (`app.axisb2b.com`), igual aos outros que já existem em
+  `/etc/nginx/sites-available/`.
+- Tudo do projeto fica isolado em `/srv/projects/gabriel/` (sua pasta
+  pessoal na VPS, separada de `caio/`, `daniel/`, `dashboard/`).
+
+Se algum dia mudar algo na VPS (novo projeto, porta usada), reconfira que
+`3100` continua livre: `ss -tlnp | grep 3100`.
+
+## 1. Instalar Docker (uma vez)
 
 ```bash
-ssh root@IP_DO_SERVIDOR
+ssh root@92.113.33.149
 
 curl -fsSL https://get.docker.com | sh
+docker --version   # confirma que instalou
 ```
 
-(Diferente da Oracle, a imagem Ubuntu da Hetzner não vem com iptables
-bloqueando as portas — não precisa mexer em firewall do SO se você já
-criou o Firewall da Hetzner no passo 1.)
+## 2. DNS
 
-## 3. DNS
+No gerenciador do domínio `axisb2b.com`, crie um registro **A**:
+`app.axisb2b.com → 92.113.33.149` (mesmo IP dos outros sites que já apontam
+pra essa VPS). Espere propagar antes do passo 5.
 
-No gerenciador do seu domínio, crie um registro **A**:
-`app.seudominio.com.br → IP_DO_SERVIDOR`. Espere propagar (minutos, às vezes
-até ~1h) antes do passo 5 — o Caddy precisa disso pra emitir o certificado HTTPS.
-
-## 4. Configurar o projeto no servidor
+## 3. Clonar e configurar o projeto
 
 ```bash
-git clone https://github.com/Gabriel-Alves-dev/IA-axis-atendimento.git
-cd IA-axis-atendimento
+mkdir -p /srv/projects/gabriel
+cd /srv/projects/gabriel
+git clone https://github.com/Gabriel-Alves-dev/IA-axis-atendimento.git axis-atendimento
+cd axis-atendimento
 
 cp .env.production.example .env.production
 nano .env.production          # preencher tudo (valores do seu app/.env.local)
-
-nano deploy/Caddyfile         # trocar app.seudominio.com.br pelo domínio real
 ```
 
-## 5. Subir
+## 4. Subir os containers
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
-Primeiro build demora uns minutos. Depois:
+Primeiro build demora uns minutos. Confirma que subiu:
 
-- `https://app.seudominio.com.br` → painel no ar com HTTPS
-- Conectar o WhatsApp de novo pela tela do painel (QR) — a sessão fica
-  persistida em `waha/sessions/` e sobrevive a restarts do servidor.
+```bash
+docker ps --filter "name=axis-"
+curl -I http://127.0.0.1:3100   # deve responder (307 pro /login é normal)
+```
+
+## 5. Configurar o Nginx do host + HTTPS
+
+```bash
+cp deploy/nginx-app.conf /etc/nginx/sites-available/app.axisb2b.com
+ln -s /etc/nginx/sites-available/app.axisb2b.com /etc/nginx/sites-enabled/
+nginx -t && systemctl reload nginx
+
+# Emite e configura o certificado HTTPS automaticamente (mesmo processo usado
+# nos outros sites dessa VPS)
+certbot --nginx -d app.axisb2b.com
+```
+
+Pronto: `https://app.axisb2b.com` no ar. Conecta o WhatsApp de novo pela tela
+do painel (QR) — a sessão fica persistida em `waha/sessions/` dentro da pasta
+do projeto e sobrevive a restarts.
 
 ## 6. Atualizar depois de um push
 
 ```bash
-cd IA-axis-atendimento && git pull
+cd /srv/projects/gabriel/axis-atendimento && git pull
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
 ## Notas
 
-- **WAHA não fica exposto na internet** — só o painel passa pelo Caddy. Pra ver o
-  dashboard do WAHA: `ssh -L 3001:localhost:3001 root@IP_DO_SERVIDOR` (e
-  descomente o `ports` do waha no compose) → http://localhost:3001.
+- **WAHA não fica exposto na internet** — só o painel passa pelo Nginx. Pra
+  ver o dashboard do WAHA: descomente o `ports` dele no
+  `docker-compose.prod.yml` (porta `3101`, também só localhost) e use túnel
+  SSH: `ssh -L 3101:localhost:3101 root@92.113.33.149` → http://localhost:3101.
 - **Supabase**: em Authentication → URL Configuration, ajuste o Site URL pra
-  `https://app.seudominio.com.br`.
+  `https://app.axisb2b.com`.
 - **Vercel**: pode manter o projeto como ambiente de demo/preview ou deletar —
   os dois deploys não conflitam (mas só um deve ficar com o WhatsApp conectado).
-- **Logs**: `docker compose -f docker-compose.prod.yml logs -f app` (ou `waha`, `caddy`).
-- **Se um dia quiser tentar a Oracle Always Free de novo** (gratuita, mas com
-  fila de capacidade): `deploy/create-vm-retry.ps1` já está pronto e testado —
-  só rodar de novo (`powershell -ExecutionPolicy Bypass -File deploy\create-vm-retry.ps1`)
-  e deixar na janela em background por um tempo mais longo.
+- **Logs**: `docker compose -f docker-compose.prod.yml logs -f app` (ou `waha`).
+- **Segurança**: essa VPS roda projetos de outras pessoas (chaves SSH de
+  `julio.cesar`, `caio.araujo` etc. em `/root/.ssh/authorized_keys`) — evite
+  rodar comandos com `sudo`/`root` fora da pasta do projeto sem necessidade,
+  e nunca use `docker system prune` sem `--filter` (pode afetar containers
+  de outros projetos se algum dia existirem).
+- **Se um dia quiser tentar a Oracle Always Free** (gratuita, mas com fila de
+  capacidade) ou migrar pra uma VPS dedicada (Hetzner): os arquivos
+  `deploy/create-vm-retry.ps1` (retry automático da Oracle) e a imagem WAHA
+  `:arm` ficam disponíveis se precisar retomar essas rotas — nesse caso volta
+  a fazer sentido usar Caddy (veja o histórico do git deste arquivo).
