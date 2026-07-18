@@ -73,6 +73,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
   const [sending, setSending] = useState(false)
   // No celular só cabe um painel por vez: lista OU chat (com botão de voltar).
   const [mobileChatOpen, setMobileChatOpen] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const selected = conversations.find(c => c.id === selectedId)
 
@@ -101,6 +102,11 @@ export default function ConversationsClient({ initialConversations, userEmail }:
 
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+
+  // Rola pro final da conversa ao trocar de conversa ou chegar mensagem nova.
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ block: 'end' })
+  }, [selectedId, messages])
 
   // Realtime: novas mensagens e mudanças de conversa aparecem sem precisar dar F5.
   useEffect(() => {
@@ -134,7 +140,16 @@ export default function ConversationsClient({ initialConversations, userEmail }:
         const row = payload.new as ConversationData
         setConversations(prev => prev.some(c => c.id === row.id) ? prev : [{ ...row, lastMessage: '' }, ...prev])
       })
-      .subscribe()
+      .subscribe((status, err) => {
+        // Sem isso, uma falha na assinatura (RLS, auth, rede) é 100% silenciosa —
+        // nenhum erro aparece no console, só "parece" que o realtime não funciona.
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.error('[realtime] falha ao assinar conversations-realtime:', status, err)
+          toast.error('Atualização em tempo real indisponível — atualize a página para ver mensagens novas.')
+        } else if (status === 'SUBSCRIBED') {
+          console.log('[realtime] conversations-realtime conectado')
+        }
+      })
 
     return () => { supabase.removeChannel(channel) }
   }, [])
@@ -353,6 +368,7 @@ export default function ConversationsClient({ initialConversations, userEmail }:
               {!loadingMessages && messages.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center mt-8">Sem mensagens ainda.</p>
               )}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Reply area */}
