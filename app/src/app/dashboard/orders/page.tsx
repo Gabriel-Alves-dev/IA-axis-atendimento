@@ -4,7 +4,8 @@ import OrdersClient, { type OrderData } from './orders-client'
 
 export default async function OrdersPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const { data: orders } = await supabase

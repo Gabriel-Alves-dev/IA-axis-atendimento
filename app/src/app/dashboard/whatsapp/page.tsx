@@ -12,8 +12,9 @@ export type IgnoredChatData = {
 
 export default async function WhatsAppPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  const tenantId = await getCurrentTenantId(supabase)
+  const { data: { session: authSession } } = await supabase.auth.getSession()
+  const user = authSession?.user ?? null
+  const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const [{ data: session }, { data: ignoredChats }] = await Promise.all([
     supabase.from('whatsapp_sessions').select('*').eq('tenant_id', tenantId).maybeSingle(),

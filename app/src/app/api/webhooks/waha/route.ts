@@ -150,12 +150,6 @@ export async function POST(req: Request) {
 
     if (agentConfigError) console.error('[waha webhook] erro ao buscar agent_configs:', agentConfigError.message)
 
-    if (!agentConfig?.enabled) {
-      console.log('[waha webhook] ignorado: agent_configs não existe ou enabled = false para tenant', tenantId)
-      await markProcessed()
-      return NextResponse.json({ ok: true })
-    }
-
     const { data: storeProfile } = await supabase
       .from('store_profiles')
       .select('*')
@@ -206,9 +200,20 @@ export async function POST(req: Request) {
     })
     await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversation!.id)
 
+    // A partir daqui só decidimos se a IA responde — a mensagem do cliente já foi
+    // salva acima e aparece no painel independente do que vier a seguir.
+
     // Se um humano assumiu a conversa, a IA não responde
     if (conversation!.mode === 'human') {
       console.log('[waha webhook] ignorado: conversation.mode = human')
+      await markProcessed()
+      return NextResponse.json({ ok: true })
+    }
+
+    // Atendente IA desativado nas configurações do tenant: mensagem fica registrada,
+    // mas ninguém responde automaticamente (nem IA, nem handoff automático).
+    if (!agentConfig?.enabled) {
+      console.log('[waha webhook] IA desativada (agent_configs.enabled = false) para tenant', tenantId, '— mensagem salva, sem resposta automática')
       await markProcessed()
       return NextResponse.json({ ok: true })
     }

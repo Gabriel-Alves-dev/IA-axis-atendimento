@@ -4,7 +4,8 @@ import ConversationsClient, { type ConversationData } from './conversations-clie
 
 export default async function ConversationsPage() {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
   const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const { data: conversations } = await supabase

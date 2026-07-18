@@ -287,8 +287,11 @@ create index if not exists idx_messages_tenant_id on messages(tenant_id);
 create index if not exists idx_orders_tenant_id on orders(tenant_id);
 create index if not exists idx_orders_status on orders(status);
 create index if not exists idx_ai_logs_conversation_id on ai_logs(conversation_id);
+create index if not exists idx_ai_logs_tenant_id on ai_logs(tenant_id);
 create index if not exists idx_webhook_events_processed on webhook_events(processed);
 create index if not exists idx_menu_items_tenant_id on menu_items(tenant_id);
+create index if not exists idx_store_profiles_tenant_id on store_profiles(tenant_id);
+create index if not exists idx_agent_configs_tenant_id on agent_configs(tenant_id);
 
 -- ============================================================
 -- ROW LEVEL SECURITY (RLS)
