@@ -28,9 +28,9 @@ services:
       - waha
 
   waha:
-    # Tag :arm é a build oficial pra ARM64 (VM Ampere A1 da Oracle).
-    # Num VPS x86 comum, troque para devlikeapro/waha (sem sufixo).
-    image: devlikeapro/waha:arm
+    # Imagem padrão (x86_64) — vale pra Hetzner/DigitalOcean/qualquer VPS comum.
+    # Numa VM ARM (ex.: Oracle Ampere), troque para devlikeapro/waha:arm.
+    image: devlikeapro/waha
     container_name: waha
     restart: unless-stopped
     # Chromium precisa de /dev/shm maior que o padrão de 64MB do Docker,

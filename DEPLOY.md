@@ -1,6 +1,6 @@
-# Deploy na Oracle Cloud (Always Free)
+# Deploy num VPS (Hetzner)
 
-Arquitetura: **uma VM ARM gratuita** rodando painel Next.js + WAHA + Caddy (HTTPS)
+Arquitetura: **um servidor** rodando painel Next.js + WAHA + Caddy (HTTPS)
 via `docker-compose.prod.yml`. O **Supabase continua gerenciado** no supabase.com.
 
 ```
@@ -10,45 +10,48 @@ Internet ──HTTPS──▶ Caddy ──▶ app (Next.js :3000) ──▶ Supa
                                WAHA (:3000, não exposto)
 ```
 
-## 1. Criar a VM (uma vez)
+> Nota: tentamos primeiro a Oracle Cloud Always Free (gratuita), mas a região
+> São Paulo ficou sem capacidade da VM ARM gratuita por mais de 12h seguidas
+> (isso é comum lá — ver `deploy/create-vm-retry.ps1` se quiser retomar essa
+> rota depois, é só um script de retry). Hetzner custa uns €4,5-5/mês
+> (~R$ 25-30) mas cria a VM na hora, sem fila.
 
-1. Conta em [oracle.com/cloud/free](https://www.oracle.com/cloud/free/) (pede cartão
-   só pra verificação; escolha a região **Brazil East (São Paulo)**).
-2. Menu → Compute → Instances → **Create instance**:
-   - Image: **Ubuntu 24.04** (aarch64)
-   - Shape: **Ampere → VM.Standard.A1.Flex** — 2 OCPUs / 8 GB já sobra (o free
-     permite até 4/24). Se der "Out of capacity", tente outro Availability
-     Domain ou horário — é loteria comum no free tier de SP.
-   - Cole sua chave SSH pública. Anote o **IP público** ao final.
-3. Liberar portas na rede da Oracle: Networking → Virtual Cloud Networks → sua
-   VCN → Security List da subnet → **Add Ingress Rules**: origem `0.0.0.0/0`,
-   TCP, portas `80` e `443`.
+## 1. Criar o servidor (uma vez)
 
-## 2. Preparar a VM
+1. Conta em [hetzner.com/cloud](https://www.hetzner.com/cloud) (pede cartão).
+2. **New Project** → **Add Server**:
+   - Location: **Nuremberg** ou **Falkenstein** (Alemanha — mais barato) ou
+     **Ashburn** (EUA) se preferir menor latência pras APIs do Mercado Pago/OpenAI.
+     (Hetzner não tem datacenter no Brasil; a diferença de latência pro
+     usuário final é pequena pra um painel administrativo.)
+   - Image: **Ubuntu 24.04**
+   - Type: **CX22** (2 vCPU / 4GB RAM / 40GB disco, ~€4,5/mês) — sobra pro
+     painel + WAHA + Caddy.
+   - SSH key: cole sua chave pública (`type C:\Users\trabs\.ssh\id_ed25519.pub`
+     no PowerShell pra copiar).
+   - Firewall: pode criar um liberando só **22, 80, 443** — o assistente da
+     Hetzner tem um botão "Create Firewall" nessa mesma tela.
+3. Criar. Em ~30s a VM está no ar com um IP público — anota ele.
+
+## 2. Preparar o servidor
 
 ```bash
-ssh ubuntu@IP_DA_VM
+ssh root@IP_DO_SERVIDOR
 
-# As imagens Ubuntu da Oracle vêm com iptables bloqueando tudo além do SSH —
-# liberar 80/443 também no SO (além da Security List):
-sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT
-sudo iptables -I INPUT 5 -p tcp --dport 443 -j ACCEPT
-sudo apt-get update && sudo apt-get install -y iptables-persistent
-sudo netfilter-persistent save
-
-# Docker
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker ubuntu
-exit   # sair e conectar de novo pra valer o grupo docker
+curl -fsSL https://get.docker.com | sh
 ```
+
+(Diferente da Oracle, a imagem Ubuntu da Hetzner não vem com iptables
+bloqueando as portas — não precisa mexer em firewall do SO se você já
+criou o Firewall da Hetzner no passo 1.)
 
 ## 3. DNS
 
 No gerenciador do seu domínio, crie um registro **A**:
-`app.seudominio.com.br → IP_DA_VM`. (Espere propagar antes do passo 5 —
-o Caddy precisa disso pra emitir o certificado HTTPS.)
+`app.seudominio.com.br → IP_DO_SERVIDOR`. Espere propagar (minutos, às vezes
+até ~1h) antes do passo 5 — o Caddy precisa disso pra emitir o certificado HTTPS.
 
-## 4. Configurar o projeto na VM
+## 4. Configurar o projeto no servidor
 
 ```bash
 git clone https://github.com/Gabriel-Alves-dev/IA-axis-atendimento.git
@@ -66,11 +69,11 @@ nano deploy/Caddyfile         # trocar app.seudominio.com.br pelo domínio real
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 ```
 
-Primeiro build demora uns minutos (compila o Next na VM). Depois:
+Primeiro build demora uns minutos. Depois:
 
 - `https://app.seudominio.com.br` → painel no ar com HTTPS
 - Conectar o WhatsApp de novo pela tela do painel (QR) — a sessão fica
-  persistida em `waha/sessions/` e sobrevive a restarts da VM.
+  persistida em `waha/sessions/` e sobrevive a restarts do servidor.
 
 ## 6. Atualizar depois de um push
 
@@ -82,10 +85,14 @@ docker compose -f docker-compose.prod.yml --env-file .env.production up -d --bui
 ## Notas
 
 - **WAHA não fica exposto na internet** — só o painel passa pelo Caddy. Pra ver o
-  dashboard do WAHA: descomente o `ports` dele no compose e use túnel SSH
-  (`ssh -L 3001:localhost:3001 ubuntu@IP_DA_VM` → http://localhost:3001).
+  dashboard do WAHA: `ssh -L 3001:localhost:3001 root@IP_DO_SERVIDOR` (e
+  descomente o `ports` do waha no compose) → http://localhost:3001.
 - **Supabase**: em Authentication → URL Configuration, ajuste o Site URL pra
   `https://app.seudominio.com.br`.
 - **Vercel**: pode manter o projeto como ambiente de demo/preview ou deletar —
   os dois deploys não conflitam (mas só um deve ficar com o WhatsApp conectado).
 - **Logs**: `docker compose -f docker-compose.prod.yml logs -f app` (ou `waha`, `caddy`).
+- **Se um dia quiser tentar a Oracle Always Free de novo** (gratuita, mas com
+  fila de capacidade): `deploy/create-vm-retry.ps1` já está pronto e testado —
+  só rodar de novo (`powershell -ExecutionPolicy Bypass -File deploy\create-vm-retry.ps1`)
+  e deixar na janela em background por um tempo mais longo.
