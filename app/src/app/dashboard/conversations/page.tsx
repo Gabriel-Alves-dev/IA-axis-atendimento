@@ -5,7 +5,7 @@ import ConversationsClient, { type ConversationData } from './conversations-clie
 export default async function ConversationsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const tenantId = await getCurrentTenantId(supabase)
+  const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const { data: conversations } = await supabase
     .from('conversations')

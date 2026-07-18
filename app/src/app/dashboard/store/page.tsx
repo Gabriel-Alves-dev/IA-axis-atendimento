@@ -5,7 +5,7 @@ import StoreForm, { type StoreProfileData } from './store-form'
 export default async function StorePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const tenantId = await getCurrentTenantId(supabase)
+  const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const { data: profile } = await supabase
     .from('store_profiles')

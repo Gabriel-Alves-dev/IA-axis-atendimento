@@ -5,7 +5,7 @@ import LogsClient, { type AiLogData } from './logs-client'
 export default async function LogsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const tenantId = await getCurrentTenantId(supabase)
+  const tenantId = await getCurrentTenantId(supabase, user?.id)
 
   const { data: logs } = await supabase
     .from('ai_logs')
